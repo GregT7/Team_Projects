@@ -66,12 +66,3 @@ for imagePath in test_paths:
     pred = model.predict(H.reshape(1, -1))[0]
     display_hogImage(image, hogImage, i)
     i += 1
-
-
-
-
-
-
-
-
-
