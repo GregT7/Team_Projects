@@ -3,6 +3,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from skimage import exposure
 from skimage import feature
 import os
+import numpy as np
 import cv2
 
 def get_file_paths(directory):
@@ -25,29 +26,70 @@ def display_hogImage(image, hogImage, pred, i):
 def print_accuracy(total_deathstar, correct_deathstar, total_nondeathstar, correct_nondeathstar):
     ds_inaccurate = total_deathstar - correct_deathstar
     nds_inaccurate = total_nondeathstar - correct_nondeathstar
+    
+    total_images = total_deathstar + total_nondeathstar
+    total_accurate = correct_nondeathstar + correct_deathstar
     total_inaccurate = ds_inaccurate + nds_inaccurate
+
     print(f"Total Deathstar images: {total_deathstar}, accurate: {correct_deathstar}, inaccurate: {ds_inaccurate}")
     print(f"Total Non-deathstar images: {total_nondeathstar}, accurate: {correct_nondeathstar}, inaccurate: {nds_inaccurate}")
-    print(f"Total images: {total_deathstar + total_nondeathstar}, accurate: {correct_nondeathstar + correct_deathstar}, inaccurate: {total_inaccurate}")
+    print(f"Total images: {total_images}, accurate: {total_accurate}, inaccurate: {total_inaccurate}")
 
     print(f"Deathstar accuracy: {correct_deathstar / total_deathstar * 100}%")
     print(f"Non-deathstar accuracy: {correct_nondeathstar / total_nondeathstar * 100}%")
     print(f"Total accuracy: {(correct_deathstar + correct_nondeathstar) / (total_deathstar + total_nondeathstar) * 100}%")
 
-    print("\nMisclassified Images")
-    for image in misclassified_images:
-        print("\t" + image)
+    if not misclassified_images:
+        print("No misclassified images...")
+    else:
+        print("\nMisclassified Images")
+        
+        for image in misclassified_images:
+            print("\t" + image)
     
+# def isolate_red_pixels(image):
+#     # Convert to HSV
+#     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+#     # Define the range for red color
+#     lower_red = np.array([0, 100, 100])
+#     upper_red = np.array([10, 255, 255])
+#     mask1 = cv2.inRange(hsv, lower_red, upper_red)
+
+#     lower_red = np.array([170, 100, 100])
+#     upper_red = np.array([180, 255, 255])
+#     mask2 = cv2.inRange(hsv, lower_red, upper_red)
+
+#     # Combine the masks
+#     mask = cv2.bitwise_or(mask1, mask2)
+
+#     # Apply the mask
+#     return cv2.bitwise_and(image, image, mask=mask)
+
+# def extract_red_circles(result):
+#     gray = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
+#     gray = cv2.medianBlur(gray, 5)
+#     rows = gray.shape[0]
+#     circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, rows / 8,
+#                                 param1=100, param2=30,
+#                                 minRadius=1, maxRadius=30)
+#     return circles
+
 
 # initialize the data matrix and labels
 print("[INFO] extracting features...")
 data = []
 labels = []
 
-train_dir = "..\\assets\\train\\"
+train_dir = "..\\assets\\train\\temp\\"
 train_paths = get_file_paths(train_dir)
-test_dir = "..\\assets\\test\\"
+test_dir = "..\\assets\\test\\temp\\"
 test_paths = get_file_paths(test_dir)
+
+# train_dir = "..\\assets\\train\\"
+# train_paths = get_file_paths(train_dir)
+# test_dir = "..\\assets\\test\\"
+# test_paths = get_file_paths(test_dir)
 
 
 # loop over the image paths in the training set
