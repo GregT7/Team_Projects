@@ -94,34 +94,48 @@ def calculate_histogram(image, hpars=config.hist_params):
 
 
 
-def format_data(data):
+def format_data(data, params=config.params):
     formatted_data = {}
     circles = []
     hog = []
     hist = []
 
     for i in range(len(data)):
-        circles.append(data[i]['circles'])
-        hog.append(data[i]['hog'])
-        hist.append(data[i]['hist'])
+        if 'hog' in params['fsel']:
+            hog.append(data[i]['hog'])
+
+        if 'circles' in params['fsel']:
+            circles.append(data[i]['circles'])
+        
+        if 'hist' in params['fsel']:
+            hist.append(data[i]['hist'])
     
-    formatted_data['circles'] = circles
-    formatted_data['hog'] = hog
-    formatted_data['hist'] = hist
+    if 'hog' in params['fsel']:
+        formatted_data['hog'] = hog
+        
+    if 'circles' in params['fsel']:
+        formatted_data['circles'] = circles
+    
+    if 'hist' in params['fsel']:
+        formatted_data['hist'] = hist
 
     return formatted_data
 
 
-def extract_feature_data(image, hog=config.hog_params, rpars = config.redpx_params, 
-                         cpars = config.circ_params, hpars=config.hist_params):
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    H = feature.hog(gray, orientations=hog['ornts'], pixels_per_cell=hog['ppc'],
-                    cells_per_block=hog['cpb'], transform_sqrt=True, block_norm="L1")
+def extract_feature_data(image, params):
+    dict = {}
+    if 'hog' in params['fsel']:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        dict['hog'] = feature.hog(gray, orientations=params['hog']['ornts'], pixels_per_cell=params['hog']['ppc'],
+                        cells_per_block=params['hog']['cpb'], transform_sqrt=True, block_norm="L1")
     
-    red_px = isolate_red_pixels(image, rpars)
-    circles = extract_red_circles(red_px, cpars)
-    hist = calculate_histogram(image, hpars)
-    dict = {'hog': H, 'red_px': red_px, 'circles': circles, 'hist': hist}
+    if 'circles' in params['fsel']:
+        red_px = isolate_red_pixels(image, params['red'])
+        dict['circles'] = extract_red_circles(red_px, params['circles'])
+
+    if 'hist' in params['fsel']:
+        dict['hist'] = calculate_histogram(image, params['hist'])
+
     return dict
 
 def extract_features(params=config.params):
@@ -141,38 +155,44 @@ def extract_features(params=config.params):
         image = cv2.imread(imagePath)
         image = cv2.resize(image, (1024, 1024))
 
-        feature_data = extract_feature_data(image, params['hog'], params['red'], params['circle'],
-                                            params['hist'])
+        feature_data = extract_feature_data(image, params)
 
         data.append(feature_data)
         labels.append(img_class)
 
-    return {'data': format_data(data), 'labels': labels}
+    return {'data': format_data(data, params), 'labels': labels}
 
 
 def train_model(data, labels, params=config.params):
-    scaler_circles = StandardScaler().fit(data['circles'])
-    scaler_hog = StandardScaler().fit(data['hog'])
-    scaler_hist = StandardScaler().fit(data['hist'])
-
     model = KNeighborsClassifier(params['n'])
+    training_dict = {}
+    scalers = {}
+    
+    # result = np.hstack(tuple(data.values()))
+    if 'hog' in params['fsel']:
+        scaler_hog = StandardScaler().fit(data['hog'])
+        hog_scaled = scaler_hog.transform(data['hog'])
+        training_dict['hog'] = hog_scaled * params['weight']['hog']
+        scalers['hog'] = scaler_hog
+    
+    if 'circles' in params['fsel']:
+        scaler_circles = StandardScaler().fit(data['circles'])
+        circles_scaled = scaler_circles.transform(data['circles'])
+        training_dict['circles'] = circles_scaled * params['weight']['circles']
+        scalers['circles'] = scaler_circles
 
-    circles_scaled = scaler_circles.transform(data['circles'])
-    hog_scaled = scaler_hog.transform(data['hog'])
-    hist_scaled = scaler_hist.transform(data['hist'])
-
-    circles_weighted = circles_scaled * params['weight']['circles']
-    hog_weighted = hog_scaled * params['weight']['hog']
-    hist_weighted = hist_scaled * params['weight']['hist']
-
-    training_data = np.hstack((circles_weighted, hog_weighted, hist_weighted))
+    if 'hist' in params['fsel']:
+        scaler_hist = StandardScaler().fit(data['hist'])
+        hist_scaled = scaler_hist.transform(data['hist'])
+        training_dict['hist'] = hist_scaled * params['weight']['hist']
+        scalers['hist'] = scaler_hist
+    
+    training_data = np.hstack(tuple(training_dict.values()))
 
     # "train" the nearest neighbors classifier
     print("[INFO] training classifier...")
     model.fit(training_data, labels)
-
-    kNN = {'model': model, 'scaler_circles': scaler_circles, 'scaler_hog': scaler_hog,
-           'scaler_hist': scaler_hist}
+    kNN = {'model': model, 'scalers': scalers}
     return kNN
 
 def test_model(kNN, params=config.params):
@@ -190,12 +210,11 @@ def test_model(kNN, params=config.params):
         img_class = imagePath.split("\\")[-2]
         image = cv2.imread(imagePath)
         image = cv2.resize(image, (1024, 1024))
-        feature_data = extract_feature_data(image, params['hog'], params['red'], params['circle'],
-                                            params['hist'])
+        feature_data = extract_feature_data(image, params)
 
-        fdata = scale_data(feature_data, kNN, params['weight'])
+        scaled_data = scale_data(feature_data, kNN, params)
 
-        pred = kNN['model'].predict(fdata)
+        pred = kNN['model'].predict(scaled_data)
         if img_class == "deathstar":
             total_deathstar += 1
         elif img_class == "non-deathstar":
@@ -219,19 +238,23 @@ def test_model(kNN, params=config.params):
 
     stats = {'ds': ds, 'nds':nds, 'misclassified_images': misclassified_images}
     return stats
-    # print_accuracy(ds, nds, misclassified_images)
 
-def scale_data(feature_data, kNN, weights=config.feature_weights):
-    hog_data = np.array(feature_data['hog']).reshape(1, -1)
-    circles_data = np.array(feature_data['circles']).reshape(1, -1)
-    hist_data = np.array(feature_data['hist']).reshape(1, -1)
 
-    test_hog_scaled = kNN['scaler_hog'].transform(hog_data)
-    test_circles_scaled = kNN['scaler_circles'].transform(circles_data)
-    test_hist_scaled = kNN['scaler_hist'].transform(hist_data)
+def scale_data(feature_data, kNN, params):
+    data_dict = {}
+    if 'hog' in params['fsel']:
+        hog_data = np.array(feature_data['hog']).reshape(1, -1)
+        test_hog_scaled = kNN['scalers']['hog'].transform(hog_data)
+        data_dict['hog'] = test_hog_scaled * params['weight']['hog']
+        
+    if 'circles' in params['fsel']:
+        circles_data = np.array(feature_data['circles']).reshape(1, -1)
+        test_circles_scaled = kNN['scalers']['circles'].transform(circles_data)
+        data_dict['circles'] = test_circles_scaled * params['weight']['circles']
 
-    test_hog_weighted = test_hog_scaled * weights['hog']
-    test_circles_weighted = test_circles_scaled * weights['circles']
-    test_hist_weighted = test_hist_scaled * weights['hist']
+    if 'hist' in params['fsel']:
+        hist_data = np.array(feature_data['hist']).reshape(1, -1)
+        test_hist_scaled = kNN['scalers']['hist'].transform(hist_data)
+        data_dict['hist'] = test_hist_scaled * params['weight']['hist']
 
-    return np.hstack((test_circles_weighted, test_hog_weighted, test_hist_weighted))
+    return np.hstack(tuple(data_dict.values()))

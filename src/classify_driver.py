@@ -1,5 +1,4 @@
 import image_classifier as clf
-import config as c
 
 if __name__ == '__main__':
     features = clf.extract_features()

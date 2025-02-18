@@ -86,7 +86,7 @@ def create_dataset(num_images, output_directory, backgrounds):
     for i in range(num_images):
         bg_path = random.choice(backgrounds)
         bg = Image.open(bg_path).convert("RGBA")  # Keep transparency if applicable
-        img_name = "deathstar_" + str(random.randint(0, 1000)) + ".png"
+        img_name = "deathstar_" + str(random.randint(0, 100000)) + ".png"
         create_image(img_name, bg)
         output_path = os.path.join(output_directory, img_name)
         bg.save(output_path, "PNG")
@@ -106,4 +106,4 @@ deathstar = get_file_paths(deathstar_path)
 moon = get_file_paths(moon_path)
 spaceship = get_file_paths(spaceship_path)
 
-create_dataset(40, output_path, backgrounds)
+create_dataset(20, output_path, backgrounds)

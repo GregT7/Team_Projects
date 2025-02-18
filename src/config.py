@@ -1,6 +1,6 @@
 # training/testing paths
-train_dir = "..\\assets\\test_cases\\test_case21.22\\train\\"
-test_dir = "..\\assets\\test_cases\\test_case21.22\\test\\"
+train_dir = "..\\assets\\test_cases\\test_case21.245\\train\\"
+test_dir = "..\\assets\\test_cases\\test_case21.245\\test\\"
 
 # kNN - number of neighbors
 num_neighbors = 1
