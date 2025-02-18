@@ -1,34 +1,29 @@
-#include <SPI.h>
-#include <nRF24L01.h>
-#include <RF24.h>
+from RF24 import RF24
+import time
 
+# Set up the RF24 communication
+radio = RF24(22, 0)  # CE, CSN pins (update based on your pin setup)
+radio.begin()
+radio.setPALevel(RF24.PA_HIGH)
+radio.openReadingPipe(1, 0xF0F0F0F0E1)  # Unique pipe address
+radio.startListening()
 
-RF24 radio(7, 8);  // CE, CSN
+print("Receiver is ready and listening...")
 
+# Function to write to a file
+def write_image(data):
+    with open("received_image.jpg", "wb") as f:
+        f.write(data)
 
-const byte address[6] = "00001";
+# Listening loop
+while True:
+    if radio.available():
+        received_data = []
+        radio.read(received_data, radio.getDynamicPayloadSize())
+        print(f"Received {len(received_data)} bytes")
 
-void setup()
-{
-  while (!Serial);
-    Serial.begin(9600);
-  
-  radio.begin();
-  
-  
-  radio.openReadingPipe(0, address);
-  
-  
-  radio.startListening();
-}
-
-void loop()
-{
-  
-  if (radio.available())
-  {
-    char text[32] = {0};
-    radio.read(&text, sizeof(text));
-    Serial.println(text);
-  }
-}
+        # Write the received data to an image file
+        write_image(bytes(received_data))
+        print("Image saved as received_image.jpg")
+        
+    time.sleep(0.1)
