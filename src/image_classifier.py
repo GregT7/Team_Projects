@@ -8,13 +8,6 @@ import numpy as np
 import cv2
 import config
 
-
-ornts = 6 # 9 - detailed, 6 - rough
-ppc = (128,128) # (10, 10) - detailed, (128, 128)
-cpb = (1,1) # (2, 2) - detailed, (1,1) rough
-feature_weights = config.feature_weights
-
-
 def get_file_paths(directory):
     file_paths = []
     for root, dirs, files in os.walk(directory):
@@ -32,21 +25,18 @@ def display_hogImage(image, hogImage, pred, i):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-def print_accuracy(total_deathstar, correct_deathstar, total_nondeathstar, correct_nondeathstar, disp_images=False):
-    ds_inaccurate = total_deathstar - correct_deathstar
-    nds_inaccurate = total_nondeathstar - correct_nondeathstar
-    
-    total_images = total_deathstar + total_nondeathstar
-    total_accurate = correct_nondeathstar + correct_deathstar
-    total_inaccurate = ds_inaccurate + nds_inaccurate
+def print_accuracy(ds, nds, misclassified_images, disp_images=False):
+    total_images = ds['total'] + nds['total']
+    total_accurate = nds['accurate'] + ds['accurate']
+    total_inaccurate = nds['inaccurate'] + ds['inaccurate']
 
-    print(f"Total Deathstar images: {total_deathstar}, accurate: {correct_deathstar}, inaccurate: {ds_inaccurate}")
-    print(f"Total Non-deathstar images: {total_nondeathstar}, accurate: {correct_nondeathstar}, inaccurate: {nds_inaccurate}")
+    print(f"Total Deathstar images: {ds['total']}, accurate: {ds['accurate']}, inaccurate: {ds['inaccurate']}")
+    print(f"Total Non-deathstar images: {nds['total']}, accurate: {nds['accurate']}, inaccurate: {nds['inaccurate']}")
     print(f"Total images: {total_images}, accurate: {total_accurate}, inaccurate: {total_inaccurate}")
 
-    print(f"Deathstar accuracy: {correct_deathstar / total_deathstar * 100}%")
-    print(f"Non-deathstar accuracy: {correct_nondeathstar / total_nondeathstar * 100}%")
-    print(f"Total accuracy: {(correct_deathstar + correct_nondeathstar) / (total_deathstar + total_nondeathstar) * 100}%")
+    print(f"Deathstar accuracy: {ds['accurate'] / ds['total'] * 100}%")
+    print(f"Non-deathstar accuracy: {nds['accurate'] / nds['total'] * 100}%")
+    print(f"Total accuracy: {(ds['accurate'] + nds['accurate']) / total_images * 100}%")
 
     if disp_images:
         if not misclassified_images:
@@ -57,15 +47,15 @@ def print_accuracy(total_deathstar, correct_deathstar, total_nondeathstar, corre
             for image in misclassified_images:
                 print("\t" + image)
     
-def isolate_red_pixels(image):
+def isolate_red_pixels(image, ranges=config.redpx_params):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
     # Define red color range
-    lower_red1 = np.array(config.low_r1, dtype="uint8")   # Lower red range
-    upper_red1 = np.array(config.up_r1, dtype="uint8")
+    lower_red1 = np.array(ranges['lr1'], dtype="uint8")   # Lower red range
+    upper_red1 = np.array(ranges['ur1'], dtype="uint8")
 
-    lower_red2 = np.array(config.low_r2, dtype="uint8")  # Upper red range
-    upper_red2 = np.array(config.up_r2, dtype="uint8")
+    lower_red2 = np.array(ranges['lr2'], dtype="uint8")  # Upper red range
+    upper_red2 = np.array(ranges['ur2'], dtype="uint8")
 
     # Create masks and combine them
     mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
@@ -75,12 +65,12 @@ def isolate_red_pixels(image):
     return mask
 
 
-def extract_red_circles(mask):
-    blurred = cv2.GaussianBlur(mask, config.kernel_size, config.std_x)
-
-    circles = cv2.HoughCircles(blurred, cv2.HOUGH_GRADIENT, dp=config.dp, minDist=config.minDist,
-                            param1=config.param1, param2=config.param2, minRadius=config.minRadius, 
-                            maxRadius=config.maxRadius)
+def extract_red_circles(mask, cpars = config.circ_params):
+    blurred = cv2.GaussianBlur(mask, cpars['kernel_size'], cpars['stdx'])
+    
+    circles = cv2.HoughCircles(blurred, cv2.HOUGH_GRADIENT, dp=cpars['dp'], minDist=cpars['minDist'],
+                            param1=cpars['param1'], param2=cpars['param2'], minRadius=cpars['minRadius'], 
+                            maxRadius=cpars['maxRadius'])
 
     if circles is None:
         circles = np.array([])
@@ -95,20 +85,22 @@ def extract_red_circles(mask):
     
     return data
 
-def calculate_histogram(image, bins):
+def calculate_histogram(image, hpars=config.hist_params):
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    hist = cv2.calcHist([image], config.channels, None, [bins, bins, bins], config.ranges)
+    hist = cv2.calcHist([image], hpars['channels'], None, 
+                        [hpars['bins'], hpars['bins'], hpars['bins']], hpars['ranges'])
     hist = cv2.normalize(hist, hist).flatten()
     return hist
 
-def extract_feature_data(image):
+def extract_feature_data(image, hog=config.hog, rpars = config.redpx_params, 
+                         cpars = config.circ_params, hpars=config.hist_params):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    H = feature.hog(gray, orientations=config.ornts, pixels_per_cell=config.ppc,
-                    cells_per_block=config.cpb, transform_sqrt=True, block_norm="L1")
+    H = feature.hog(gray, orientations=hog['ornts'], pixels_per_cell=hog['ppc'],
+                    cells_per_block=hog['cpb'], transform_sqrt=True, block_norm="L1")
     
-    red_px = isolate_red_pixels(image)
-    circles = extract_red_circles(red_px)
-    hist = calculate_histogram(image, config.bins)
+    red_px = isolate_red_pixels(image, rpars)
+    circles = extract_red_circles(red_px, cpars)
+    hist = calculate_histogram(image, hpars)
     dict = {'hog': H, 'red_px': red_px, 'circles': circles, 'hist': hist}
     return dict
 
@@ -129,103 +121,111 @@ def format_data(data):
 
     return formatted_data
 
+def extract_features(train_dir=config.train_dir):
+    # initialize the data matrix and labels
+    print("[INFO] extracting features...")
+    data = []
+    labels = []
 
+    train_paths = get_file_paths(train_dir)
 
+    # loop over the image paths in the training set
+    for imagePath in train_paths:
+        # extract image class: deathstar or non-deathstar
+        img_class = imagePath.split("\\")[-2]
+        
+        # load the image, convert it to grayscale, and detect edges
+        image = cv2.imread(imagePath)
+        image = cv2.resize(image, (1024, 1024))
 
+        feature_data = extract_feature_data(image)
 
-# initialize the data matrix and labels
-print("[INFO] extracting features...")
-data = []
-labels = []
+        data.append(feature_data)
+        labels.append(img_class)
 
+    return {'data': format_data(data), 'labels': labels}
 
-train_paths = get_file_paths(config.train_dir)
-test_paths = get_file_paths(config.test_dir)
+def train_model(data, labels, n=config.num_neighbors, weights=config.feature_weights):
+    scaler_circles = StandardScaler().fit(data['circles'])
+    scaler_hog = StandardScaler().fit(data['hog'])
+    scaler_hist = StandardScaler().fit(data['hist'])
 
-# loop over the image paths in the training set
-for imagePath in train_paths:
-    # extract image class: deathstar or non-deathstar
-    img_class = imagePath.split("\\")[-2]
+    model = KNeighborsClassifier(n)
+
+    circles_scaled = scaler_circles.transform(data['circles'])
+    hog_scaled = scaler_hog.transform(data['hog'])
+    hist_scaled = scaler_hist.transform(data['hist'])
+
+    circles_weighted = circles_scaled * weights['circles']
+    hog_weighted = hog_scaled * weights['hog']
+    hist_weighted = hist_scaled * weights['hist']
+
+    training_data = np.hstack((circles_weighted, hog_weighted, hist_weighted))
+
+    # "train" the nearest neighbors classifier
+    print("[INFO] training classifier...")
+    model.fit(training_data, labels)
+
+    kNN = {'model': model, 'scaler_circles': scaler_circles, 'scaler_hog': scaler_hog,
+           'scaler_hist': scaler_hist}
+    return kNN
+
+def test_model(kNN, test_dir=config.test_dir, weights = config.feature_weights):
+    print("[INFO] evaluating...")
     
-    # load the image, convert it to grayscale, and detect edges
-    image = cv2.imread(imagePath)
-    image = cv2.resize(image, (1024, 1024))
+    # extract the test paths
+    test_paths = get_file_paths(test_dir)
 
-    feature_data = extract_feature_data(image)
+    # loop over the test dataset
+    i = 0
+    total_deathstar = total_nondeathstar = 0
+    correct_deathstar = correct_nondeathstar = 0
+    misclassified_images = []
+    for imagePath in test_paths:
+        img_class = imagePath.split("\\")[-2]
+        image = cv2.imread(imagePath)
+        image = cv2.resize(image, (1024, 1024))
+        feature_data = extract_feature_data(image)
 
-    data.append(feature_data)
-    labels.append(img_class)
+        fdata = scale_data(feature_data, kNN, weights)
 
-data = format_data(data)
+        pred = kNN['model'].predict(fdata)
+        if img_class == "deathstar":
+            total_deathstar += 1
+        elif img_class == "non-deathstar":
+            total_nondeathstar += 1
 
+        if (pred == img_class):
+            if img_class == "deathstar":
+                correct_deathstar += 1
+            elif img_class == "non-deathstar":
+                correct_nondeathstar += 1
+        else:
+            misclassified_images.append(imagePath.split("\\")[-1])
 
-scaler_circles = StandardScaler().fit(data['circles'])
-scaler_hog = StandardScaler().fit(data['hog'])
-scaler_hist = StandardScaler().fit(data['hist'])
+        i += 1
 
-model = KNeighborsClassifier(config.num_neighbors)
+    ds = {'total': total_deathstar, 'accurate': correct_deathstar}
+    nds = {'total': total_nondeathstar, 'accurate': correct_nondeathstar}
 
-circles_scaled = scaler_circles.transform(data['circles'])
-hog_scaled = scaler_hog.transform(data['hog'])
-hist_scaled = scaler_hist.transform(data['hist'])
+    ds['inaccurate'] = ds['total'] - ds['accurate']
+    nds['inaccurate'] = nds['total'] - nds['accurate']
 
-circles_weighted = circles_scaled * feature_weights['circles']
-hog_weighted = hog_scaled * feature_weights['hog']
-hist_weighted = hist_scaled * feature_weights['hist']
+    stats = {'ds': ds, 'nds':nds, 'misclassified_images': misclassified_images}
+    return stats
+    # print_accuracy(ds, nds, misclassified_images)
 
-training_data = np.hstack((circles_weighted, hog_weighted, hist_weighted))
-
-
-# "train" the nearest neighbors classifier
-print("[INFO] training classifier...")
-
-
-model.fit(training_data, labels)
-# model.fit(training_data, labels)
-print("[INFO] evaluating...")
-
-# loop over the test dataset
-i = 0
-total_deathstar = total_nondeathstar = 0
-correct_deathstar = correct_nondeathstar = 0
-misclassified_images = []
-for imagePath in test_paths:
-    img_class = imagePath.split("\\")[-2]
-    image = cv2.imread(imagePath)
-    image = cv2.resize(image, (1024, 1024))
-    feature_data = extract_feature_data(image)
-
+def scale_data(feature_data, kNN, weights=config.feature_weights):
     hog_data = np.array(feature_data['hog']).reshape(1, -1)
     circles_data = np.array(feature_data['circles']).reshape(1, -1)
     hist_data = np.array(feature_data['hist']).reshape(1, -1)
 
-    test_hog_scaled = scaler_hog.transform(hog_data)
-    test_circles_scaled = scaler_circles.transform(circles_data)
-    test_hist_scaled = scaler_hist.transform(hist_data)
+    test_hog_scaled = kNN['scaler_hog'].transform(hog_data)
+    test_circles_scaled = kNN['scaler_circles'].transform(circles_data)
+    test_hist_scaled = kNN['scaler_hist'].transform(hist_data)
 
-    test_hog_weighted = test_hog_scaled * feature_weights['hog']
-    test_circles_weighted = test_circles_scaled * feature_weights['circles']
-    test_hist_weighted = test_hist_scaled * feature_weights['hist']
+    test_hog_weighted = test_hog_scaled * weights['hog']
+    test_circles_weighted = test_circles_scaled * weights['circles']
+    test_hist_weighted = test_hist_scaled * weights['hist']
 
-
-    fdata = np.hstack((test_circles_weighted, test_hog_weighted, test_hist_weighted))
-
-    
-    # pred = model.predict(test_circles_weighted)
-    pred = model.predict(fdata)
-    if img_class == "deathstar":
-        total_deathstar += 1
-    elif img_class == "non-deathstar":
-        total_nondeathstar += 1
-
-    if (pred == img_class):
-        if img_class == "deathstar":
-            correct_deathstar += 1
-        elif img_class == "non-deathstar":
-            correct_nondeathstar += 1
-    else:
-        misclassified_images.append(imagePath.split("\\")[-1])
-
-    i += 1
-
-print_accuracy(total_deathstar, correct_deathstar, total_nondeathstar, correct_nondeathstar)
+    return np.hstack((test_circles_weighted, test_hog_weighted, test_hist_weighted))

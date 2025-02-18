@@ -35,7 +35,7 @@ def insert_object(bg, path, objects, is_deathstar=False):
 
     # Apply random transformations
     angle = random.randint(0, 360)
-    scale_factor = random.uniform(0.4, 0.7)  # Scale between 30% to 100%
+    scale_factor = random.uniform(0.3, 0.6)  # Scale between 30% to 100%
     
     object = object.rotate(angle, expand=True)  # Rotate
     new_size = (int(bg.width * scale_factor), int(bg.height * scale_factor))
@@ -106,4 +106,4 @@ deathstar = get_file_paths(deathstar_path)
 moon = get_file_paths(moon_path)
 spaceship = get_file_paths(spaceship_path)
 
-create_dataset(10, output_path, backgrounds)
+create_dataset(40, output_path, backgrounds)
