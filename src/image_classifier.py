@@ -6,12 +6,13 @@ from skimage import feature
 import os
 import numpy as np
 import cv2
+import config
 
 
 ornts = 6 # 9 - detailed, 6 - rough
 ppc = (128,128) # (10, 10) - detailed, (128, 128)
 cpb = (1,1) # (2, 2) - detailed, (1,1) rough
-feature_weights = {'hog': 0, 'circles': 24, 'hist': 1}
+feature_weights = config.feature_weights
 
 
 def get_file_paths(directory):
@@ -31,7 +32,7 @@ def display_hogImage(image, hogImage, pred, i):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-def print_accuracy(total_deathstar, correct_deathstar, total_nondeathstar, correct_nondeathstar):
+def print_accuracy(total_deathstar, correct_deathstar, total_nondeathstar, correct_nondeathstar, disp_images=False):
     ds_inaccurate = total_deathstar - correct_deathstar
     nds_inaccurate = total_nondeathstar - correct_nondeathstar
     
@@ -47,23 +48,24 @@ def print_accuracy(total_deathstar, correct_deathstar, total_nondeathstar, corre
     print(f"Non-deathstar accuracy: {correct_nondeathstar / total_nondeathstar * 100}%")
     print(f"Total accuracy: {(correct_deathstar + correct_nondeathstar) / (total_deathstar + total_nondeathstar) * 100}%")
 
-    # if not misclassified_images:
-    #     print("No misclassified images...")
-    # else:
-    #     print("\nMisclassified Images")
-        
-    #     for image in misclassified_images:
-    #         print("\t" + image)
+    if disp_images:
+        if not misclassified_images:
+            print("No misclassified images...")
+        else:
+            print("\nMisclassified Images")
+            
+            for image in misclassified_images:
+                print("\t" + image)
     
 def isolate_red_pixels(image):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
     # Define red color range
-    lower_red1 = np.array([0, 120, 70], dtype="uint8")   # Lower red range
-    upper_red1 = np.array([10, 255, 255], dtype="uint8")
+    lower_red1 = np.array(config.low_r1, dtype="uint8")   # Lower red range
+    upper_red1 = np.array(config.up_r1, dtype="uint8")
 
-    lower_red2 = np.array([170, 120, 70], dtype="uint8")  # Upper red range
-    upper_red2 = np.array([180, 255, 255], dtype="uint8")
+    lower_red2 = np.array(config.low_r2, dtype="uint8")  # Upper red range
+    upper_red2 = np.array(config.up_r2, dtype="uint8")
 
     # Create masks and combine them
     mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
@@ -74,10 +76,11 @@ def isolate_red_pixels(image):
 
 
 def extract_red_circles(mask):
-    blurred = cv2.GaussianBlur(mask, (9, 9), 2)
+    blurred = cv2.GaussianBlur(mask, config.kernel_size, config.std_x)
 
-    circles = cv2.HoughCircles(blurred, cv2.HOUGH_GRADIENT, dp=1.2, minDist=20,
-                            param1=50, param2=30, minRadius=10, maxRadius=80)
+    circles = cv2.HoughCircles(blurred, cv2.HOUGH_GRADIENT, dp=config.dp, minDist=config.minDist,
+                            param1=config.param1, param2=config.param2, minRadius=config.minRadius, 
+                            maxRadius=config.maxRadius)
 
     if circles is None:
         circles = np.array([])
@@ -92,20 +95,20 @@ def extract_red_circles(mask):
     
     return data
 
-def calculate_histogram(image, bins=8):
+def calculate_histogram(image, bins):
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    hist = cv2.calcHist([image], [0, 1, 2], None, [bins, bins, bins], [0, 256, 0, 256, 0, 256])
+    hist = cv2.calcHist([image], config.channels, None, [bins, bins, bins], config.ranges)
     hist = cv2.normalize(hist, hist).flatten()
     return hist
 
 def extract_feature_data(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    H = feature.hog(gray, orientations=ornts, pixels_per_cell=ppc,
-                    cells_per_block=cpb, transform_sqrt=True, block_norm="L1")
+    H = feature.hog(gray, orientations=config.ornts, pixels_per_cell=config.ppc,
+                    cells_per_block=config.cpb, transform_sqrt=True, block_norm="L1")
     
     red_px = isolate_red_pixels(image)
     circles = extract_red_circles(red_px)
-    hist = calculate_histogram(image)
+    hist = calculate_histogram(image, config.bins)
     dict = {'hog': H, 'red_px': red_px, 'circles': circles, 'hist': hist}
     return dict
 
@@ -135,14 +138,9 @@ print("[INFO] extracting features...")
 data = []
 labels = []
 
-# train_dir = "..\\assets\\test_cases\\tX\\train\\"
-train_dir = "..\\assets\\test_cases\\test_case21.22\\train\\"
-train_paths = get_file_paths(train_dir)
 
-# test_dir = "..\\assets\\test_cases\\tX\\test\\"
-test_dir = "..\\assets\\test_cases\\test_case21.22\\test\\"
-test_paths = get_file_paths(test_dir)
-
+train_paths = get_file_paths(config.train_dir)
+test_paths = get_file_paths(config.test_dir)
 
 # loop over the image paths in the training set
 for imagePath in train_paths:
@@ -165,7 +163,7 @@ scaler_circles = StandardScaler().fit(data['circles'])
 scaler_hog = StandardScaler().fit(data['hog'])
 scaler_hist = StandardScaler().fit(data['hist'])
 
-model = KNeighborsClassifier(n_neighbors=1)
+model = KNeighborsClassifier(config.num_neighbors)
 
 circles_scaled = scaler_circles.transform(data['circles'])
 hog_scaled = scaler_hog.transform(data['hog'])
