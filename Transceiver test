@@ -1,0 +1,1 @@
+python3 -c "from RF24 import RF24; radio = RF24(22, 0); radio.begin(); radio.printDetails()"
