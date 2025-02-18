@@ -12,7 +12,7 @@ feature_weights = {'hog': 0, 'circles': 24, 'hist': 1}
 ornts = 6 
 ppc = (128,128)
 cpb = (1,1)
-hog = {'ornts': ornts, 'ppc': ppc, 'cpb': cpb}
+hog_params = {'ornts': ornts, 'ppc': ppc, 'cpb': cpb}
 
 # red pixel isolation function
 low_r1 = [0, 120, 70]
@@ -41,3 +41,6 @@ bins = 8
 channels = [0, 1, 2]
 ranges = [0, 256, 0, 256, 0, 256]
 hist_params = {'bins': bins, 'channels': channels, 'ranges': ranges}
+
+params = {'train_path': train_dir, 'test_path': test_dir, 'hist': hist_params, 'circle': circ_params, 
+            'red': redpx_params, 'hog': hog_params, 'weight': feature_weights, 'n': num_neighbors}

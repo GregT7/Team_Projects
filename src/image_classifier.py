@@ -92,17 +92,7 @@ def calculate_histogram(image, hpars=config.hist_params):
     hist = cv2.normalize(hist, hist).flatten()
     return hist
 
-def extract_feature_data(image, hog=config.hog, rpars = config.redpx_params, 
-                         cpars = config.circ_params, hpars=config.hist_params):
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    H = feature.hog(gray, orientations=hog['ornts'], pixels_per_cell=hog['ppc'],
-                    cells_per_block=hog['cpb'], transform_sqrt=True, block_norm="L1")
-    
-    red_px = isolate_red_pixels(image, rpars)
-    circles = extract_red_circles(red_px, cpars)
-    hist = calculate_histogram(image, hpars)
-    dict = {'hog': H, 'red_px': red_px, 'circles': circles, 'hist': hist}
-    return dict
+
 
 def format_data(data):
     formatted_data = {}
@@ -121,13 +111,26 @@ def format_data(data):
 
     return formatted_data
 
-def extract_features(train_dir=config.train_dir):
+
+def extract_feature_data(image, hog=config.hog_params, rpars = config.redpx_params, 
+                         cpars = config.circ_params, hpars=config.hist_params):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    H = feature.hog(gray, orientations=hog['ornts'], pixels_per_cell=hog['ppc'],
+                    cells_per_block=hog['cpb'], transform_sqrt=True, block_norm="L1")
+    
+    red_px = isolate_red_pixels(image, rpars)
+    circles = extract_red_circles(red_px, cpars)
+    hist = calculate_histogram(image, hpars)
+    dict = {'hog': H, 'red_px': red_px, 'circles': circles, 'hist': hist}
+    return dict
+
+def extract_features(params=config.params):
     # initialize the data matrix and labels
     print("[INFO] extracting features...")
     data = []
     labels = []
 
-    train_paths = get_file_paths(train_dir)
+    train_paths = get_file_paths(params['train_path'])
 
     # loop over the image paths in the training set
     for imagePath in train_paths:
@@ -138,27 +141,29 @@ def extract_features(train_dir=config.train_dir):
         image = cv2.imread(imagePath)
         image = cv2.resize(image, (1024, 1024))
 
-        feature_data = extract_feature_data(image)
+        feature_data = extract_feature_data(image, params['hog'], params['red'], params['circle'],
+                                            params['hist'])
 
         data.append(feature_data)
         labels.append(img_class)
 
     return {'data': format_data(data), 'labels': labels}
 
-def train_model(data, labels, n=config.num_neighbors, weights=config.feature_weights):
+
+def train_model(data, labels, params=config.params):
     scaler_circles = StandardScaler().fit(data['circles'])
     scaler_hog = StandardScaler().fit(data['hog'])
     scaler_hist = StandardScaler().fit(data['hist'])
 
-    model = KNeighborsClassifier(n)
+    model = KNeighborsClassifier(params['n'])
 
     circles_scaled = scaler_circles.transform(data['circles'])
     hog_scaled = scaler_hog.transform(data['hog'])
     hist_scaled = scaler_hist.transform(data['hist'])
 
-    circles_weighted = circles_scaled * weights['circles']
-    hog_weighted = hog_scaled * weights['hog']
-    hist_weighted = hist_scaled * weights['hist']
+    circles_weighted = circles_scaled * params['weight']['circles']
+    hog_weighted = hog_scaled * params['weight']['hog']
+    hist_weighted = hist_scaled * params['weight']['hist']
 
     training_data = np.hstack((circles_weighted, hog_weighted, hist_weighted))
 
@@ -170,11 +175,11 @@ def train_model(data, labels, n=config.num_neighbors, weights=config.feature_wei
            'scaler_hist': scaler_hist}
     return kNN
 
-def test_model(kNN, test_dir=config.test_dir, weights = config.feature_weights):
+def test_model(kNN, params=config.params):
     print("[INFO] evaluating...")
     
     # extract the test paths
-    test_paths = get_file_paths(test_dir)
+    test_paths = get_file_paths(params['test_path'])
 
     # loop over the test dataset
     i = 0
@@ -185,9 +190,10 @@ def test_model(kNN, test_dir=config.test_dir, weights = config.feature_weights):
         img_class = imagePath.split("\\")[-2]
         image = cv2.imread(imagePath)
         image = cv2.resize(image, (1024, 1024))
-        feature_data = extract_feature_data(image)
+        feature_data = extract_feature_data(image, params['hog'], params['red'], params['circle'],
+                                            params['hist'])
 
-        fdata = scale_data(feature_data, kNN, weights)
+        fdata = scale_data(feature_data, kNN, params['weight'])
 
         pred = kNN['model'].predict(fdata)
         if img_class == "deathstar":
