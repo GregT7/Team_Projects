@@ -19,18 +19,17 @@ up_r1 = [10, 255, 255]
 low_r2 = [170, 120, 70]
 up_r2 = [180, 255, 255]
 
-
-# circle detection
+# circle detection - Gaussian Blur
 kernel_size = (9, 9)
 std_x = 2
 
+# circle detection - Hough Circle Transform
 dp = 1.2
 minDist = 20
 param1 = 50
 param2 = 30
 minRadius = 10
 maxRadius = 80
-
 
 # histogram
 bins = 8
