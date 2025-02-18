@@ -1,23 +1,25 @@
+
 from RF24 import RF24
 import time
 
 # Set up the RF24 communication
-radio = RF24(22, 0)  # CE, CSN pins (update based on your pin setup)
+radio = RF24(22, 0)  # CE=GPIO22, CSN=SPI CE0 (GPIO8)
 radio.begin()
-radio.setPALevel(RF24.PA_HIGH)
+radio.setPALevel(RF24.PA_HIGH)  # Set power level
+radio.setDataRate(RF24.RF24_1MBPS)  # Set data rate
 radio.openReadingPipe(1, 0xF0F0F0F0E1)  # Unique pipe address
 radio.startListening()
 
-print("Receiver is ready and listening...")
+print("📡 Receiver is ready and listening...")
 
-# Function to write to a file
+# Function to save the received image
 def write_image(data):
     with open("received_image.jpg", "wb") as f:
         f.write(data)
 
 # Listening loop
 received_data = bytearray()
-expected_chunks = None  # To store the expected number of chunks
+expected_chunks = None
 received_chunks = 0
 
 while True:
@@ -29,20 +31,21 @@ while True:
         if expected_chunks is None:
             try:
                 expected_chunks = int(buffer.decode().strip('\0'))
-                print(f"Expecting {expected_chunks} chunks...")
+                print(f"🛜 Expecting {expected_chunks} chunks...")
             except ValueError:
-                print("Failed to decode chunk count.")
+                print("⚠️ Failed to decode chunk count.")
             continue
         
+        # Append received chunk to the image data
         received_data.extend(buffer)
         received_chunks += 1
-        print(f"Received chunk {received_chunks}/{expected_chunks}")
+        print(f"📦 Received chunk {received_chunks}/{expected_chunks}")
 
         # Once all chunks are received, save the image
         if received_chunks >= expected_chunks:
-            print("Image received successfully. Saving to file...")
+            print("✅ Image received successfully. Saving to file...")
             write_image(received_data)
-            print("Image saved as received_image.jpg")
-            break  # Exit loop after receiving full image
+            print("🖼️ Image saved as 'received_image.jpg'")
+            break  # Exit loop after full image is received
     
     time.sleep(0.05)
