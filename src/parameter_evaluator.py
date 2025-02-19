@@ -1,54 +1,111 @@
+import pandas as pd
 import image_classifier as clf
+import time
+from openpyxl import load_workbook
 
-p1 = "..\\assets\\test_cases\\test_case21.22\\train\\"
-p2 = "..\\assets\\test_cases\\test_case21.245\\train\\"
-train_dirs = [p1, p2]
+def parse_feature_selection(row):
+    fsel = []
+    if row.hog_weight > 0:
+        fsel.append('hog')
+    if row.circles_weight > 0:
+        fsel.append('circles')
+    if row.hist_weight > 0:
+        fsel.append('hist')
+    return fsel
 
-p1 = "..\\assets\\test_cases\\test_case21.22\\test\\"
-p2 ="..\\assets\\test_cases\\test_case21.245\\test\\"
-test_dirs = [p1, p2]
+def parse_red_params(row):
+    lr1 = [int(item) for item in row.low_r1.split(', ')]
+    lr2 = [int(item) for item in row.low_r2.split(', ')]
+    ur1 = [int(item) for item in row.up_r1.split(', ')]
+    ur2 = [int(item) for item in row.up_r2.split(', ')]
+    return {'lr1': lr1, 'lr2': lr2, 'ur1': ur1, 'ur2': ur2}
 
-fsel1 = ['hog', 'hist']
-fsel2 = ['hist', 'circles']
-feature_select = [fsel1, fsel2]
+def parse_circle_params(row):
+    circles = {}
+    circles['kernel_size'] = [int(item) for item in row.kernel_size.split(', ')]
+    circles['stdx'] = row.stdx
+    circles['dp'] = row.dp
+    circles['minDist'] = row.minDist
+    circles['param1'] = row.param1
+    circles['param2'] = row.param2
+    circles['minRadius'] = row.minRadius
+    circles['maxRadius'] = row.maxRadius
+    return circles
 
-w1 = {'hog': 0, 'circles': 24, 'hist': 1}
-w2 = {'hog': 0, 'circles': 24, 'hist': 0.5}
-weights = [w1, w2]
+def parse_hist_params(row):
+    hist = {}
+    hist['bins'] = row.bins
+    hist['channels'] = [int(item) for item in row.channels.split(', ')]
+    hist['ranges'] = [int(item) for item in row.ranges.split(', ')]
+    return hist
 
-num_neigbors1 = 1
-n = [num_neigbors1, num_neigbors1]
+def parse_hog_params(row):
+    hog = {}
+    hog['ornts'] = row.ornts
+    hog['ppc'] = [int(item) for item in row.ppc.split(', ')]
+    hog['cpb'] = [int(item) for item in row.cpb.split(', ')]
+    return hog
 
-hg1 = {'ornts': 6, 'ppc': (128, 128), 'cpb': (1,1)}
-hg2 = {'ornts': 6, 'ppc': (64, 64), 'cpb': (1,1)}
-hogs = [hg1, hg2]
 
-low_r1 = [0, 120, 70]
-up_r1 = [10, 255, 255]
-low_r2 = [170, 120, 70]
-up_r2 = [180, 255, 255]
-r1 = {'lr1': low_r1, 'lr2': low_r2, 'ur1': up_r1, 'ur2': up_r2}
-rs = [r1, r1]
+def parse_parameters(row):
+    params = {}
+    params['train_path'] = row.train_path
+    params['test_path'] = row.test_path
+    params['n'] = row.n
+    params['weight'] = {'hog': row.hog_weight, 'circles': row.circles_weight, 'hist': row.hist_weight}
+    params['fsel'] = parse_feature_selection(row)
+    params['hog'] = parse_hog_params(row)
+    params['red'] = parse_red_params(row)
+    params['circles'] = parse_circle_params(row)
+    params['hist'] = parse_hist_params(row)
+    return params
 
-c1 = {'kernel_size': (9, 9), 'stdx': 2}
-c1.update({'dp': 1.2, 'minDist': 20, 'param1': 50, 'param2': 30, 
-               'minRadius': 10, 'maxRadius': 80})
-circles = [c1, c1]
 
-hs1 = {'bins': 8, 'channels': [0, 1, 2], 'ranges': [0, 256, 0, 256, 0, 256]}
-hist = [hs1, hs1]
+def update_df_row(stats, row, df):
+    df.at[row.Index, "total_deathstar"] = stats['ds']['total']
+    df.at[row.Index, "accurate_deathstar"] = stats['ds']['accurate']
+    df.at[row.Index, "inaccurate_deathstar"] = stats['ds']['inaccurate']
 
-num_rounds = len(train_dirs)
-for i in range(1):
-    params = {'train_path': train_dirs[i], 'test_path': test_dirs[i], 'hist': hist[i], 'circles': circles[i], 
-              'red': rs[i], 'hog': hogs[i], 'weight': weights[i], 'n': n[i], 'fsel': feature_select[i]}
-              
+    df.at[row.Index, "total_non-deathstar"] = stats['nds']['total']
+    df.at[row.Index, "accurate_non-deathstar"] = stats['nds']['accurate']
+    df.at[row.Index, "inaccurate_non-deathstar"] = stats['nds']['inaccurate']
+
+    total_images = stats['nds']['total'] + stats['ds']['total']
+    ds_accurate = round(stats['ds']['accurate'] / stats['ds']['total'] * 100, 2)
+    nds_accurate = round(stats['nds']['accurate'] / stats['nds']['total'] * 100, 2)
+    total_accurate = (stats['ds']['accurate'] + stats['nds']['accurate']) / total_images
+    total_accurate = round(total_accurate * 100, 2)
+
+    df.at[row.Index, "ds_accuracy"] = ds_accurate
+    df.at[row.Index, "nds_accuracy"] = nds_accurate
+    df.at[row.Index, "total_accuracy"] = total_accurate
+    df.at[row.Index, "elapsed_time"] = stats['time']
+
+    return df
+
+
+# inclusive
+id_range = {'low': 32, 'high': 39}
+
+# Read the .xlsx file
+file_path = '..//data/parameter_list.xlsx'
+df = pd.read_excel(file_path)
+
+df = df[(df['ID'] >= id_range['low']) & (df['ID'] <= id_range['high'])]
+
+for row in df.itertuples():
+    print(f"Starting row ID #{row.ID}/{id_range['high']}")
+    start = time.time()
+    params = parse_parameters(row)
     features = clf.extract_features(params)
     kNN = clf.train_model(features['data'], features['labels'], params)
     stats = clf.test_model(kNN, params)
-    clf.print_accuracy(stats['ds'], stats['nds'], stats['misclassified_images'])
+    stats['time'] = round(time.time() - start, 2)
+    df = update_df_row(stats, row, df)
+    print(f"Finished row {row.ID}\n")
 
 
-
-print("done")
-
+# Write back the modified DataFrame
+print("Completed number crunching, writing to excel file now...")
+with pd.ExcelWriter(file_path, engine="openpyxl", mode="w") as writer:
+    df.to_excel(writer, index=False)
