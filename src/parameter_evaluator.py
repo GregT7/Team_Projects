@@ -88,7 +88,7 @@ def update_df_row(stats, row, df):
 id_range = {'low': 80, 'high': 80}
 
 # Read the .xlsx file
-file_path = '..//data/parameter_list.xlsx'
+file_path = '..\data\parameter_list.xlsx'
 df = pd.read_excel(file_path)
 
 print(df)
