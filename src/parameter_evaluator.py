@@ -85,14 +85,13 @@ def update_df_row(stats, row, df):
 
 
 # inclusive
-id_range = {'low': 32, 'high': 39}
+id_range = {'low': 80, 'high': 80}
 
 # Read the .xlsx file
 file_path = '..//data/parameter_list.xlsx'
 df = pd.read_excel(file_path)
 
 df = df[(df['ID'] >= id_range['low']) & (df['ID'] <= id_range['high'])]
-
 for row in df.itertuples():
     print(f"Starting row ID #{row.ID}/{id_range['high']}")
     start = time.time()
@@ -102,6 +101,7 @@ for row in df.itertuples():
     stats = clf.test_model(kNN, params)
     stats['time'] = round(time.time() - start, 2)
     df = update_df_row(stats, row, df)
+    clf.print_accuracy(stats['ds'], stats['nds'])
     print(f"Finished row {row.ID}\n")
 
 
@@ -109,3 +109,5 @@ for row in df.itertuples():
 print("Completed number crunching, writing to excel file now...")
 with pd.ExcelWriter(file_path, engine="openpyxl", mode="w") as writer:
     df.to_excel(writer, index=False)
+
+print("Done writing to excel file")
