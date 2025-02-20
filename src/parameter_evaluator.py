@@ -91,6 +91,8 @@ id_range = {'low': 80, 'high': 80}
 file_path = '..//data/parameter_list.xlsx'
 df = pd.read_excel(file_path)
 
+print(df)
+
 df = df[(df['ID'] >= id_range['low']) & (df['ID'] <= id_range['high'])]
 for row in df.itertuples():
     print(f"Starting row ID #{row.ID}/{id_range['high']}")
@@ -102,6 +104,7 @@ for row in df.itertuples():
     stats['time'] = round(time.time() - start, 2)
     df = update_df_row(stats, row, df)
     clf.print_accuracy(stats['ds'], stats['nds'])
+    print(f"Total time: {stats['time']} seconds")
     print(f"Finished row {row.ID}\n")
 
 
