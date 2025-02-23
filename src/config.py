@@ -1,12 +1,14 @@
+from image_classifier import parse_feature_select
+
 # training/testing paths
-train_dir = "..\\assets\\test_cases\\test_case21.245\\train\\"
-test_dir = "..\\assets\\test_cases\\test_case21.245\\test\\"
+train_dir = "../assets/test_cases/test_case21.245/train/"
+test_dir = "../assets/test_cases/test_case21.245/test/"
 
 # kNN - number of neighbors
 num_neighbors = 1
 
 # Feature weights
-feature_weights = {'hog': 0, 'circles': 24, 'hist': 1}
+feature_weights = {'hog': 0, 'circles': 1, 'hist': 0}
 
 # Hog Feature Extraction
 ornts = 6 
@@ -28,11 +30,11 @@ circ_params = {'kernel_size': kernel_size, 'stdx': stdx}
 
 # circle detection - Hough Circle Transform
 dp = 1.2
-minDist = 20
-param1 = 50
-param2 = 30
-minRadius = 10
-maxRadius = 80
+minDist = 25
+param1 = 65
+param2 = 40
+minRadius = 20
+maxRadius = 90
 circ_params.update({'dp': dp, 'minDist': minDist, 'param1': param1, 'param2': param2, 
                'minRadius': minRadius, 'maxRadius': maxRadius})
 
@@ -42,5 +44,6 @@ channels = [0, 1, 2]
 ranges = [0, 256, 0, 256, 0, 256]
 hist_params = {'bins': bins, 'channels': channels, 'ranges': ranges}
 
-params = {'train_path': train_dir, 'test_path': test_dir, 'hist': hist_params, 'circle': circ_params, 
-            'red': redpx_params, 'hog': hog_params, 'weight': feature_weights, 'n': num_neighbors}
+params = {'train_path': train_dir, 'test_path': test_dir, 'hist': hist_params, 'circles': circ_params, 
+            'red': redpx_params, 'hog': hog_params, 'weight': feature_weights, 'n': num_neighbors,
+            'fsel': parse_feature_select(feature_weights)}

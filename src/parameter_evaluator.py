@@ -3,16 +3,6 @@ import image_classifier as clf
 import time
 from openpyxl import load_workbook
 
-def parse_feature_selection(row):
-    fsel = []
-    if row.hog_weight > 0:
-        fsel.append('hog')
-    if row.circles_weight > 0:
-        fsel.append('circles')
-    if row.hist_weight > 0:
-        fsel.append('hist')
-    return fsel
-
 def parse_red_params(row):
     lr1 = [int(item) for item in row.low_r1.split(', ')]
     lr2 = [int(item) for item in row.low_r2.split(', ')]
@@ -53,7 +43,7 @@ def parse_parameters(row):
     params['test_path'] = row.test_path
     params['n'] = row.n
     params['weight'] = {'hog': row.hog_weight, 'circles': row.circles_weight, 'hist': row.hist_weight}
-    params['fsel'] = parse_feature_selection(row)
+    params['fsel'] = clf.parse_feature_select(params['weight'])
     params['hog'] = parse_hog_params(row)
     params['red'] = parse_red_params(row)
     params['circles'] = parse_circle_params(row)
@@ -108,7 +98,5 @@ for row in df.itertuples():
 
 # Write back the modified DataFrame
 print("Completed number crunching, writing to excel file now...")
-# with pd.ExcelWriter(file_path, engine="openpyxl", mode="a") as writer:
-#     df.to_excel(writer, index=False)
 df.to_excel(file_path, index=False)
 print("Done writing to excel file")

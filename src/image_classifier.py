@@ -6,7 +6,6 @@ from skimage import feature
 import os
 import numpy as np
 import cv2
-import config
 
 def get_file_paths(directory):
     file_paths = []
@@ -48,7 +47,7 @@ def print_accuracy(ds, nds, misclassified_images=[], disp_images=False):
             for image in misclassified_images:
                 print("\t" + image)
     
-def isolate_red_pixels(image, ranges=config.redpx_params):
+def isolate_red_pixels(image, ranges):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
     # Define red color range
@@ -66,7 +65,7 @@ def isolate_red_pixels(image, ranges=config.redpx_params):
     return mask
 
 
-def extract_red_circles(mask, cpars = config.circ_params):
+def extract_red_circles(mask, cpars):
     blurred = cv2.GaussianBlur(mask, cpars['kernel_size'], cpars['stdx'])
     
     circles = cv2.HoughCircles(blurred, cv2.HOUGH_GRADIENT, dp=cpars['dp'], minDist=cpars['minDist'],
@@ -86,7 +85,7 @@ def extract_red_circles(mask, cpars = config.circ_params):
     
     return data
 
-def calculate_histogram(image, hpars=config.hist_params):
+def calculate_histogram(image, hpars):
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     hist = cv2.calcHist([image], hpars['channels'], None, 
                         [hpars['bins'], hpars['bins'], hpars['bins']], hpars['ranges'])
@@ -95,7 +94,7 @@ def calculate_histogram(image, hpars=config.hist_params):
 
 
 
-def format_data(data, params=config.params):
+def format_data(data, params):
     formatted_data = {}
     circles = []
     hog = []
@@ -139,7 +138,7 @@ def extract_feature_data(image, params):
 
     return dict
 
-def extract_features(params=config.params):
+def extract_features(params):
     # initialize the data matrix and labels
     print("[INFO] extracting features...")
     data = []
@@ -164,7 +163,7 @@ def extract_features(params=config.params):
     return {'data': format_data(data, params), 'labels': labels}
 
 
-def train_model(data, labels, params=config.params):
+def train_model(data, labels, params):
     model = KNeighborsClassifier(params['n'])
     training_dict = {}
     scalers = {}
@@ -196,7 +195,7 @@ def train_model(data, labels, params=config.params):
     kNN = {'model': model, 'scalers': scalers}
     return kNN
 
-def test_model(kNN, params=config.params):
+def test_model(kNN, params):
     print("[INFO] evaluating...")
     
     # extract the test paths
@@ -259,3 +258,13 @@ def scale_data(feature_data, kNN, params):
         data_dict['hist'] = test_hist_scaled * params['weight']['hist']
 
     return np.hstack(tuple(data_dict.values()))
+
+def parse_feature_select(weight):
+    fsel = []
+    if weight['hog'] > 0:
+        fsel.append('hog')
+    if weight['circles'] > 0:
+        fsel.append('circles')
+    if weight['hist'] > 0:
+        fsel.append('hist')
+    return fsel
