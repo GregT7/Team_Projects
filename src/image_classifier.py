@@ -12,7 +12,8 @@ def get_file_paths(directory):
     file_paths = []
     for root, dirs, files in os.walk(directory):
         for file in files:
-            file_paths.append(os.path.join(root, file))
+            filtered_path = os.path.join(root, file).replace("\\", "/")
+            file_paths.append(filtered_path)
     return file_paths
 
 def display_hogImage(image, hogImage, pred, i):
@@ -34,9 +35,9 @@ def print_accuracy(ds, nds, misclassified_images=[], disp_images=False):
     print(f"Total Non-deathstar images: {nds['total']}, accurate: {nds['accurate']}, inaccurate: {nds['inaccurate']}")
     print(f"Total images: {total_images}, accurate: {total_accurate}, inaccurate: {total_inaccurate}")
 
-    print(f"Deathstar accuracy: {ds['accurate'] / ds['total'] * 100}%")
-    print(f"Non-deathstar accuracy: {nds['accurate'] / nds['total'] * 100}%")
-    print(f"Total accuracy: {(ds['accurate'] + nds['accurate']) / total_images * 100}%")
+    print(f"Deathstar accuracy: {round(ds['accurate'] / ds['total'] * 100, 2)}%")
+    print(f"Non-deathstar accuracy: {round(nds['accurate'] / nds['total'] * 100, 2)}%")
+    print(f"Total accuracy: {round((ds['accurate'] + nds['accurate']) / total_images * 100, 2)}%")
 
     if disp_images:
         if not misclassified_images:
@@ -149,7 +150,7 @@ def extract_features(params=config.params):
     # loop over the image paths in the training set
     for imagePath in train_paths:
         # extract image class: deathstar or non-deathstar
-        img_class = imagePath.split("\\")[-2]
+        img_class = imagePath.split("/")[-2]
         
         # load the image, convert it to grayscale, and detect edges
         image = cv2.imread(imagePath)
@@ -207,7 +208,7 @@ def test_model(kNN, params=config.params):
     correct_deathstar = correct_nondeathstar = 0
     misclassified_images = []
     for imagePath in test_paths:
-        img_class = imagePath.split("\\")[-2]
+        img_class = imagePath.split("/")[-2]
         image = cv2.imread(imagePath)
         image = cv2.resize(image, (1024, 1024))
         feature_data = extract_feature_data(image, params)
@@ -226,7 +227,7 @@ def test_model(kNN, params=config.params):
             elif img_class == "non-deathstar":
                 correct_nondeathstar += 1
         else:
-            misclassified_images.append(imagePath.split("\\")[-1])
+            misclassified_images.append(imagePath.split("/")[-1])
 
         i += 1
 

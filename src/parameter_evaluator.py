@@ -91,8 +91,6 @@ id_range = {'low': 80, 'high': 80}
 file_path = '..\data\parameter_list.xlsx'
 df = pd.read_excel(file_path)
 
-print(df)
-
 df = df[(df['ID'] >= id_range['low']) & (df['ID'] <= id_range['high'])]
 for row in df.itertuples():
     print(f"Starting row ID #{row.ID}/{id_range['high']}")
@@ -110,7 +108,7 @@ for row in df.itertuples():
 
 # Write back the modified DataFrame
 print("Completed number crunching, writing to excel file now...")
-with pd.ExcelWriter(file_path, engine="openpyxl", mode="w") as writer:
-    df.to_excel(writer, index=False)
-
+# with pd.ExcelWriter(file_path, engine="openpyxl", mode="a") as writer:
+#     df.to_excel(writer, index=False)
+df.to_excel(file_path, index=False)
 print("Done writing to excel file")
