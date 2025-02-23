@@ -25,7 +25,7 @@ def display_hogImage(image, hogImage, pred, i):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-def print_accuracy(ds, nds, misclassified_images=[], disp_images=False):
+def print_accuracy(ds, nds, time, misclassified_images=[], disp_images=False):
     total_images = ds['total'] + nds['total']
     total_accurate = nds['accurate'] + ds['accurate']
     total_inaccurate = nds['inaccurate'] + ds['inaccurate']
@@ -37,6 +37,7 @@ def print_accuracy(ds, nds, misclassified_images=[], disp_images=False):
     print(f"Deathstar accuracy: {round(ds['accurate'] / ds['total'] * 100, 2)}%")
     print(f"Non-deathstar accuracy: {round(nds['accurate'] / nds['total'] * 100, 2)}%")
     print(f"Total accuracy: {round((ds['accurate'] + nds['accurate']) / total_images * 100, 2)}%")
+    print(f"Total time: {time} seconds")
 
     if disp_images:
         if not misclassified_images:

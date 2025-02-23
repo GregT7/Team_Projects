@@ -91,8 +91,7 @@ for row in df.itertuples():
     stats = clf.test_model(kNN, params)
     stats['time'] = round(time.time() - start, 2)
     df = update_df_row(stats, row, df)
-    clf.print_accuracy(stats['ds'], stats['nds'])
-    print(f"Total time: {stats['time']} seconds")
+    clf.print_accuracy(stats['ds'], stats['nds'], stats['time'])
     print(f"Finished row {row.ID}\n")
 
 
