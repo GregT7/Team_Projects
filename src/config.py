@@ -3,6 +3,8 @@ from image_classifier import parse_feature_select
 # training/testing paths
 train_dir = "../assets/test_cases/test_case21.267/train/"
 test_dir = "../assets/test_cases/test_case21.267/test/"
+out_dir = "../assets/test_cases/test_case21.334/output/"
+
 
 # kNN - number of neighbors
 num_neighbors = 1
@@ -46,4 +48,4 @@ hist_params = {'bins': bins, 'channels': channels, 'ranges': ranges}
 
 params = {'train_path': train_dir, 'test_path': test_dir, 'hist': hist_params, 'circles': circ_params, 
             'red': redpx_params, 'hog': hog_params, 'weight': feature_weights, 'n': num_neighbors,
-            'fsel': parse_feature_select(feature_weights)}
+            'fsel': parse_feature_select(feature_weights), 'out_path': out_dir}

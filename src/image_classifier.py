@@ -6,6 +6,7 @@ from skimage import feature
 import os
 import numpy as np
 import cv2
+import shutil
 
 def get_file_paths(directory):
     file_paths = []
@@ -196,7 +197,7 @@ def train_model(data, labels, params):
     kNN = {'model': model, 'scalers': scalers}
     return kNN
 
-def test_model(kNN, params):
+def test_model(kNN, params, move_files=False):
     print("[INFO] evaluating...")
     
     # extract the test paths
@@ -229,6 +230,12 @@ def test_model(kNN, params):
         else:
             misclassified_images.append(imagePath.split("/")[-1])
 
+        if move_files and pred == "deathstar":
+            filename = "ds" if img_class == "deathstar" else "nds"
+            filename += "_" + imagePath.split('/')[-1]
+            copy_location = params['out_path'] + filename
+            shutil.copy(imagePath, copy_location)
+            imagePath
         i += 1
 
     ds = {'total': total_deathstar, 'accurate': correct_deathstar}

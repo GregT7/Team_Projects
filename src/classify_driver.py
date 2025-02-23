@@ -9,4 +9,3 @@ if __name__ == '__main__':
     stats = clf.test_model(kNN, config.params)
     stats['time'] = round(time.time() - start, 2)
     clf.print_accuracy(stats['ds'], stats['nds'], stats['time'], stats['misclassified_images'], disp_images=True)
-    
