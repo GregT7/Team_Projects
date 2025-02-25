@@ -5,7 +5,7 @@ import time
 radio = RF24(17, 0)  # CE=GPIO22, CSN=SPI CE0 (GPIO8)
 radio.begin()
 radio.setPALevel(2)  # Set power level
-radio.setDataRate(RF24.RF24_2MBPS)  # Set data rate
+radio.setDataRate(rf24_datarate_e.RF24_2MBPS)  # Set data rate
 radio.openReadingPipe(1, 0xF0F0F0F0E1)  # Unique pipe address
 radio.startListening()
 
