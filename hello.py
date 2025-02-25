@@ -1,11 +1,11 @@
-from RF24 import RF24
+from RF24 import RF24, rf24_datarate_e
 import time
 
 # Set up the RF24 communication
 radio = RF24(17, 0)  # CE=GPIO22, CSN=SPI CE0 (GPIO8)
 radio.begin()
 radio.setPALevel(2)  # Set power level
-radio.setDataRate(rf24_datarate_e.RF24_2MBPS)  # Set data rate
+radio.setDataRate(rf24_datarate_e.RF24_2MBPS)    # Set data rate
 radio.openWritingPipe(0xF0F0F0F0E1)  # Unique pipe address
 radio.stopListening()
 time.sleep(0.1)
