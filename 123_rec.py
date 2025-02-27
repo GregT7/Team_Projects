@@ -31,8 +31,8 @@ try:
     while True:
         if radio.available():
             # Prepare a 32-byte buffer
-            received_message = bytearray(32)
-            radio.read(received_message, len(received_message))
+            received_message = radio.read(32)
+            
 
             # Decode and strip null padding
             message = received_message.decode("utf-8").strip("\0")
