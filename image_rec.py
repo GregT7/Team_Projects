@@ -26,8 +26,8 @@ radio.startListening()
 
 print("📡 Receiver is listening...")
 
-# Buffer to store file data
-file_data = bytearray()
+# Buffer to store chunks
+chunks = {}
 receiving = False
 
 try:
@@ -38,33 +38,38 @@ try:
 
             if message == "START":
                 print("🚀 START signal received. Beginning reception...")
-                file_data = bytearray()
+                chunks = {}
                 receiving = True
 
             elif message == "END":
-                print("🏁 END signal received. Saving and extracting zip...")
+                print("🏁 END signal received. Reassembling file...")
 
-                # Remove null padding
-                file_data = file_data.rstrip(b'\0')
+                # Reassemble data based on chunk numbers
+                ordered_chunks = [chunks[i] for i in sorted(chunks.keys())]
 
-                # Write to zip file
+                # Concatenate and strip padding
+                file_data = b''.join(ordered_chunks).rstrip(b'\0')
+
+                # Save to file
                 with open(ZIP_RECEIVED_FILE, "wb") as f:
                     f.write(file_data)
-                print(f"✅ Saved received data as {ZIP_RECEIVED_FILE}")
+                print(f"✅ Saved as {ZIP_RECEIVED_FILE}")
 
-                # Extract zip file
+                # Extract zip
                 with zipfile.ZipFile(ZIP_RECEIVED_FILE, 'r') as zip_ref:
                     zip_ref.extractall(EXTRACT_FOLDER)
                 print(f"📂 Extracted files to {EXTRACT_FOLDER}")
 
-                # Cleanup
                 os.remove(ZIP_RECEIVED_FILE)
                 print("🧹 Temporary ZIP file removed.")
                 break  # Done
 
             elif receiving:
-                file_data.extend(received_payload)
-                print(f"📥 Received chunk. Total size: {len(file_data)} bytes")
+                # Extract sequence number and chunk
+                seq_num = int.from_bytes(received_payload[:2], 'big')
+                data = received_payload[2:]
+                chunks[seq_num] = data
+                print(f"📥 Received chunk #{seq_num}")
 
         time.sleep(0.01)  # Avoid CPU hogging
 
