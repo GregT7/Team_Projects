@@ -1,11 +1,12 @@
 import os
-import zipfile
 from RF24 import RF24, rf24_datarate_e, RF24_PA_LOW
 import time
 
 # === CONFIGURATION ===
-ZIP_RECEIVED_FILE = "received_package.zip"
-EXTRACT_FOLDER = "received_images"
+RECEIVE_FOLDER = "received_images"
+
+if not os.path.exists(RECEIVE_FOLDER):
+    os.makedirs(RECEIVE_FOLDER)
 
 # Initialize RF24
 radio = RF24(17, 0)
@@ -26,9 +27,10 @@ radio.startListening()
 
 print("📡 Receiver is listening...")
 
-# Buffer to store chunks
+# Variables to handle current file
+current_file_data = bytearray()
+current_filename = None
 chunks = {}
-receiving = False
 
 try:
     while True:
@@ -36,45 +38,43 @@ try:
             received_payload = radio.read(32)
             message = received_payload.decode('utf-8', errors='ignore').strip()
 
-            if message == "START":
-                print("🚀 START signal received. Beginning reception...")
+            # Detect start of file
+            if message.startswith("START:"):
+                current_filename = message.split(":", 1)[1].strip()
+                current_file_data = bytearray()
                 chunks = {}
-                receiving = True
+                print(f"🚀 START receiving file: {current_filename}")
 
-            elif message == "END":
-                print("🏁 END signal received. Reassembling file...")
+            # Detect end of file
+            elif message.startswith("END:"):
+                end_filename = message.split(":", 1)[1].strip()
+                if current_filename == end_filename:
+                    print(f"🏁 END receiving file: {current_filename}")
 
-                # Reassemble data based on chunk numbers
-                ordered_chunks = [chunks[i] for i in sorted(chunks.keys())]
+                    # Order chunks and assemble file
+                    ordered_data = b''.join([chunks[i] for i in sorted(chunks.keys())]).rstrip(b'\0')
 
-                # Concatenate and strip padding
-                file_data = b''.join(ordered_chunks).rstrip(b'\0')
+                    # Save file
+                    output_path = os.path.join(RECEIVE_FOLDER, current_filename)
+                    with open(output_path, "wb") as f:
+                        f.write(ordered_data)
+                    print(f"✅ File saved: {output_path}")
 
-                # Save to file
-                with open(ZIP_RECEIVED_FILE, "wb") as f:
-                    f.write(file_data)
-                print(f"✅ Saved as {ZIP_RECEIVED_FILE}")
+                current_filename = None
+                current_file_data = bytearray()
+                chunks = {}
 
-                # Extract zip
-                with zipfile.ZipFile(ZIP_RECEIVED_FILE, 'r') as zip_ref:
-                    zip_ref.extractall(EXTRACT_FOLDER)
-                print(f"📂 Extracted files to {EXTRACT_FOLDER}")
-
-                os.remove(ZIP_RECEIVED_FILE)
-                print("🧹 Temporary ZIP file removed.")
-                break  # Done
-
-            elif receiving:
-                # Extract sequence number and chunk
+            # Receiving chunks
+            elif current_filename:
                 seq_num = int.from_bytes(received_payload[:2], 'big')
                 data = received_payload[2:]
                 chunks[seq_num] = data
-                print(f"📥 Received chunk #{seq_num}")
+                print(f"📥 Received chunk #{seq_num} of {current_filename}")
 
-        time.sleep(0.01)  # Avoid CPU hogging
+        time.sleep(0.01)  # Avoid CPU overuse
 
 except KeyboardInterrupt:
-    print("⏹️ Reception interrupted by user.")
+    print("⏹️ Receiver stopped by user.")
 
 finally:
     radio.stopListening()
