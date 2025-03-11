@@ -1,7 +1,9 @@
 Traceback (most recent call last):
-  File "/home/admin/darksaber/123_rec.py", line 35, in <module>
-    radio.read(received_message, len(received_message))
-Boost.Python.ArgumentError: Python argument types in
-    RF24.read(RF24, bytearray, int)
-did not match C++ signature:
-    read(RF24 {lvalue}, int maxlen)
+  File "/home/admin/darksaber/image_rec.py", line 56, in <module>
+    with zipfile.ZipFile(ZIP_RECEIVED_FILE, 'r') as zip_ref:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/zipfile.py", line 1302, in __init__
+    self._RealGetContents()
+  File "/usr/lib/python3.11/zipfile.py", line 1369, in _RealGetContents
+    raise BadZipFile("File is not a zip file")
+zipfile.BadZipFile: File is not a zip file
