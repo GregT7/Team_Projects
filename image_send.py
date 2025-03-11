@@ -37,14 +37,12 @@ with zipfile.ZipFile(ZIP_FILENAME, 'w', zipfile.ZIP_DEFLATED) as zipf:
 print("✅ Folder compressed into ZIP file.")
 
 # Function to read file in chunks
-def read_file_chunks(filename, chunk_size=32):
+def read_file_chunks(filename, chunk_size=30):  # Now only 30 bytes for data (2 bytes for header)
     with open(filename, "rb") as file:
         while True:
             chunk = file.read(chunk_size)
             if not chunk:
                 break
-            if len(chunk) < chunk_size:
-                chunk = chunk.ljust(chunk_size, b'\0')
             yield chunk
 
 # Send START signal
@@ -54,16 +52,20 @@ print("🚀 Sent START signal.")
 
 time.sleep(1)  # Give receiver time to prepare
 
-# Send chunks
+# Send chunks with sequence numbers
 try:
     chunk_number = 0
     for chunk in read_file_chunks(ZIP_FILENAME):
-        if radio.write(chunk):
-            print(f"✅ Sent chunk {chunk_number}")
+        header = chunk_number.to_bytes(2, 'big')  # 2 bytes for sequence number
+        packet = header + chunk
+        if len(packet) < 32:
+            packet = packet.ljust(32, b'\0')  # Padding to 32 bytes
+        if radio.write(packet):
+            print(f"✅ Sent chunk #{chunk_number}")
         else:
-            print(f"❌ Failed to send chunk {chunk_number}")
+            print(f"❌ Failed to send chunk #{chunk_number}")
         chunk_number += 1
-        time.sleep(0.02)  # Small delay to avoid overwhelming
+        time.sleep(0.05)  # Increased delay for reliability
 
     # Send END signal
     end_signal = "END".ljust(32).encode('utf-8')
