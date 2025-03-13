@@ -3,7 +3,7 @@ from RF24 import RF24, rf24_datarate_e, RF24_PA_LOW
 import time
 
 # === CONFIGURATION ===
-FOLDER_TO_SEND = "images_to_send"
+FOLDER_TO_SEND = "images"
 
 # Initialize RF24
 radio = RF24(17, 0)
@@ -15,7 +15,7 @@ if not radio.begin():
 radio.setPALevel(RF24_PA_LOW)
 radio.setDataRate(rf24_datarate_e.RF24_2MBPS)
 radio.setChannel(76)
-radio.setPayloadSize(32)
+radio.setPayloadSize(255)
 radio.setRetries(5, 15)
 radio.setAutoAck(True)
 
@@ -25,7 +25,7 @@ radio.stopListening()
 print("📂 Ready to send images from folder:", FOLDER_TO_SEND)
 
 # Function to read file in chunks
-def read_file_chunks(filename, chunk_size=30):  # 30 bytes data + 2 bytes chunk number
+def read_file_chunks(filename, chunk_size=253):  # 30 bytes data + 2 bytes chunk number
     with open(filename, "rb") as file:
         while True:
             chunk = file.read(chunk_size)
@@ -56,7 +56,7 @@ try:
                 packet = packet.ljust(32, b'\0')  # Padding to 32 bytes
 
             if radio.write(packet):
-                print(f"✅ Sent chunk #{chunk_number}")
+                print(f"✅ Sent chunk #{chunk_number} of file {file_name}")
             else:
                 print(f"❌ Failed to send chunk #{chunk_number}")
             chunk_number += 1
