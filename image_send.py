@@ -4,8 +4,13 @@ import time
 
 # === CONFIGURATION ===
 FOLDER_TO_SEND = "images"
+PAYLOAD_SIZE = 32  # Max packet size to utilize
+MAX_RETRIES = 300    # Maximum retries for each packet
+INTER_PACKET_DELAY = 0.0001  # Delay between packets
+CONTROL_SIGNAL_DELAY = .01  # Delay after control signals (START/END)
+FILENAME_MAX_LEN = 32 - len("START:")  # Max filename length for control signals
 
-# Initialize RF24
+# === Initialize RF24 ===
 radio = RF24(17, 0)
 
 if not radio.begin():
@@ -15,7 +20,7 @@ if not radio.begin():
 radio.setPALevel(RF24_PA_LOW)
 radio.setDataRate(rf24_datarate_e.RF24_2MBPS)
 radio.setChannel(76)
-radio.setPayloadSize(255)
+radio.setPayloadSize(PAYLOAD_SIZE)
 radio.setRetries(5, 15)
 radio.setAutoAck(True)
 
@@ -24,8 +29,9 @@ radio.stopListening()
 
 print("📂 Ready to send images from folder:", FOLDER_TO_SEND)
 
-# Function to read file in chunks
-def read_file_chunks(filename, chunk_size=253):  # 30 bytes data + 2 bytes chunk number
+
+# === Helper Function: Read file in chunks ===
+def read_file_chunks(filename, chunk_size=PAYLOAD_SIZE - 2):  # 2 bytes reserved for chunk number
     with open(filename, "rb") as file:
         while True:
             chunk = file.read(chunk_size)
@@ -33,40 +39,68 @@ def read_file_chunks(filename, chunk_size=253):  # 30 bytes data + 2 bytes chunk
                 break
             yield chunk
 
-# Send all images
+
+# === Helper Function: Safe filename truncation ===
+def safe_filename(name, prefix="START:"):
+    max_len = 32 - len(prefix)
+    if len(name) > max_len:
+        print(f"⚠️ Warning: File name '{name}' too long, truncating.")
+        name = name[:max_len]
+    return name
+
+
+# === Helper Function: Send packet with retry ===
+def send_with_retry(packet, description):
+    retry_count = 0
+    while retry_count < MAX_RETRIES:
+        if radio.write(packet):
+            print(f"✅ {description}")
+            return True
+        retry_count += 1
+        print(f"⚠️ Retry {retry_count}/{MAX_RETRIES} for {description}")
+        time.sleep(0.1)  # Retry delay
+    print(f"❌ Failed to send {description} after {MAX_RETRIES} retries")
+    return False
+
+
+# === Main Transmission Loop ===
 try:
     for file_name in os.listdir(FOLDER_TO_SEND):
         full_path = os.path.join(FOLDER_TO_SEND, file_name)
         if not os.path.isfile(full_path):
-            continue  # Skip directories
+            continue  # Skip non-files
 
-        print(f"🚀 Sending file: {file_name}")
+        # Truncate filename safely for control signals
+        safe_name = safe_filename(file_name)
 
-        # Send START signal with filename
-        start_signal = ("START:" + file_name).ljust(32)[:32].encode('utf-8')
-        radio.write(start_signal)
-        time.sleep(1)  # Let receiver prep for new file
+        # --- Send START Signal ---
+        start_signal = ("START:" + safe_name).ljust(32).encode('utf-8')
+        if not send_with_retry(start_signal, f"START signal for {file_name}"):
+            continue  # Skip file if failed to initiate
+        time.sleep(CONTROL_SIGNAL_DELAY)
 
-        # Send file chunks with chunk numbers
+        # --- Send File Chunks ---
         chunk_number = 0
         for chunk in read_file_chunks(full_path):
-            header = chunk_number.to_bytes(2, 'big')  # 2 bytes for chunk number
+            header = chunk_number.to_bytes(2, 'big')
             packet = header + chunk
-            if len(packet) < 32:
-                packet = packet.ljust(32, b'\0')  # Padding to 32 bytes
+            if len(packet) < PAYLOAD_SIZE:
+                packet = packet.ljust(PAYLOAD_SIZE, b'\0')  # Pad to full size
 
-            if radio.write(packet):
-                print(f"✅ Sent chunk #{chunk_number} of file {file_name}")
-            else:
-                print(f"❌ Failed to send chunk #{chunk_number}")
+            if not send_with_retry(packet, f"chunk #{chunk_number} of {file_name}"):
+                print(f"⛔ Aborting file {file_name} due to repeated failures.")
+                break  # Stop this file if chunk failed repeatedly
+
             chunk_number += 1
-            time.sleep(0.05)  # Adjust as needed
+            time.sleep(INTER_PACKET_DELAY)  # Delay between packets
 
-        # Send END signal with filename
-        end_signal = ("END:" + file_name).ljust(32)[:32].encode('utf-8')
-        radio.write(end_signal)
-        print(f"🏁 Finished sending file: {file_name}")
-        time.sleep(1)  # Space between files
+        # --- Send END Signal ---
+        end_signal = ("END:" + safe_name).ljust(32).encode('utf-8')
+        if send_with_retry(end_signal, f"END signal for {file_name}"):
+            print(f"🏁 Finished sending file: {file_name}")
+        else:
+            print(f"⚠️ File {file_name} may not have been received correctly.")
+        time.sleep(CONTROL_SIGNAL_DELAY)  # Space before next file
 
 except KeyboardInterrupt:
     print("⏹️ Transmission interrupted by user.")
