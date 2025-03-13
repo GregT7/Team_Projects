@@ -18,7 +18,7 @@ if not radio.begin():
 radio.setPALevel(RF24_PA_LOW)
 radio.setDataRate(rf24_datarate_e.RF24_2MBPS)
 radio.setChannel(76)
-radio.setPayloadSize(32)
+radio.setPayloadSize(255)
 radio.setAutoAck(True)
 radio.setRetries(5, 15)
 
