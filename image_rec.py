@@ -4,7 +4,7 @@ import time
 
 # === CONFIGURATION ===
 RECEIVE_FOLDER = "received_images"
-PAYLOAD_SIZE = 255  # Must match sender's payload size
+PAYLOAD_SIZE = 32  # Must match sender's payload size
 
 # Create receive folder if it doesn't exist
 os.makedirs(RECEIVE_FOLDER, exist_ok=True)
