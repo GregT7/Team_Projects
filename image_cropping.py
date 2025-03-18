@@ -1,7 +1,6 @@
 import cv2
 import config
 import numpy as np
-from matplotlib import pyplot as plt
 from PIL import Image, ImageDraw
 import image_classifier as clf
 from image_classifier import get_file_paths
