@@ -6,11 +6,7 @@ import image_classifier as clf
 from image_classifier import get_file_paths
 
 
-# input_path is the path for an individual .png file
-# output_path is where the cropped image will be saved to
-input_path = "./assets/all_images/deathstar/ai_deathstar3.png"
-# C:\Users\Grego\Desktop\Spring_2025\Team_Projects_II\repo\assets\all_images\deathstar
-output_path = "./tests/autocrop_output/"
+
 
 def crop_image(image_path):
     images = []
@@ -56,19 +52,26 @@ def crop_image(image_path):
     
     return {'name': name, 'images': images}
 
-def save_cropped_image(image_dict, path):
+def save_cropped_circles(image_dict, path):
     name = image_dict['name']
     i = 0
     for circle in image_dict['images']:
-        name += "_circle" + str(i) + ".png"
-        img_path = path + name
+        new_name = name + "_circle" + str(i) + ".png"
+        img_path = path + new_name
         cv2.imwrite(img_path, circle)
         i += 1
 
-# to crop the images, use crop_image(file_path) and save the resulting cropped circles into a variable
-image_dict = crop_image(input_path)
+# uncomment code below to get it work on an individual image
 
-# to save all images from the cropped circle dictionary created previously, use the save_cropped_image function
-# passing in the image_dict and the path where you want all cropped circles to be saved
-save_cropped_image(image_dict, output_path)
+# # input_path is the path for an individual .png file
+# # output_path is where the cropped image will be saved to
+# input_path = "./assets/all_images/deathstar/ai_deathstar3.png"
+# output_path = "./tests/autocrop_output/"
+
+# # to crop the images, use crop_image(file_path) and save the resulting cropped circles into a variable
+# image_dict = crop_image(input_path)
+
+# # to save all images from the cropped circle dictionary created previously, use the save_cropped_image function
+# # passing in the image_dict and the path where you want all cropped circles to be saved
+# save_cropped_circles(image_dict, output_path)
 
