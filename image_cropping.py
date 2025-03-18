@@ -8,8 +8,9 @@ from image_classifier import get_file_paths
 
 # input_path is the path for an individual .png file
 # output_path is where the cropped image will be saved to
-input_path = "../assets/test_cases/test_case50.11234/images/deathstar_127.png"
-output_path = "../assets/test_cases/test_case50.11234/output/"
+input_path = "./assets/all_images/deathstar/ai_deathstar3.png"
+# C:\Users\Grego\Desktop\Spring_2025\Team_Projects_II\repo\assets\all_images\deathstar
+output_path = "./tests/autocrop_output/"
 
 def crop_image(image_path):
     images = []
