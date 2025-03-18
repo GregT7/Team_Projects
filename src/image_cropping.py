@@ -7,15 +7,15 @@ import image_classifier as clf
 from image_classifier import get_file_paths
 
 
-
-path = "../assets/test_cases/test_case50.11234/images/"
+# input_path is the path for an individual .png file
+# output_path is where the cropped image will be saved to
+input_path = "../assets/test_cases/test_case50.11234/images/deathstar_127.png"
 output_path = "../assets/test_cases/test_case50.11234/output/"
-paths = get_file_paths(path)
 
-images = {}
-for image_path in paths:
+def crop_image(image_path):
+    images = []
     img_name = image_path.split('/')[-1]
-    images[img_name] = []
+    name = img_name.split('.')[0]
 
     image = cv2.imread(image_path)
     red_px = clf.isolate_red_pixels(image, config.params['red'])
@@ -52,18 +52,23 @@ for image_path in paths:
 
             cropped_image = cv2.bitwise_and(area_of_interest, area_of_interest, mask = mask)
 
-            # append to cropped images array
-            images[img_name].append(cropped_image)
+            images.append(cropped_image)
+    
+    return {'name': name, 'images': images}
 
-
-
-
-for image in images:
-    name = image.split('.')[0]
+def save_cropped_image(image_dict, path):
+    name = image_dict['name']
     i = 0
-    for circle in images[image]:
+    for circle in image_dict['images']:
         name += "_circle" + str(i) + ".png"
-        img_path = output_path + name
-        cv2.imwrite(img_path, images[image][i])
-        i +=1
+        img_path = path + name
+        cv2.imwrite(img_path, circle)
+        i += 1
+
+# to crop the images, use crop_image(file_path) and save the resulting cropped circles into a variable
+image_dict = crop_image(input_path)
+
+# to save all images from the cropped circle dictionary created previously, use the save_cropped_image function
+# passing in the image_dict and the path where you want all cropped circles to be saved
+save_cropped_image(image_dict, output_path)
 
