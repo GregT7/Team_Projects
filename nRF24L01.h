@@ -57,9 +57,11 @@ def decrypt_file(input_filepath, output_filepath, key):
         encrypted_data = file.read()
     
     cipher = ChaCha20.new(key=key, nonce=nonce)
-    decrypted_data = cipher.decrypt(encrypted_data).rstrip(b'\0')  # Remove padding after decryption
-    
-    original_hash = decrypted_data[:HASH_SIZE].decode("utf-8").strip().lower()  # Extract and normalize hash
+    decrypted_data = cipher.decrypt(encrypted_data)  # FIXED: Removed .rstrip(b'\0')
+
+    # Extract the original hash without stripping valid characters
+    original_hash = decrypted_data[:HASH_SIZE].decode("utf-8").rstrip()  # FIXED: No .strip().lower()
+
     image_data = decrypted_data[HASH_SIZE:]  # Extract image data
 
     with open(output_filepath, "wb") as out_file:
@@ -88,7 +90,7 @@ try:
                 end_filename = message.split(":", 1)[1].strip()
                 if current_filename == end_filename:
                     print(f"🔄 Finalizing {current_filename}...")
-                    
+
                     # Ensure we received all chunks
                     ordered_data = b''.join([chunks[i] for i in sorted(chunks.keys())])
 
@@ -115,6 +117,8 @@ try:
                         print(f"✅ Image integrity verified: {current_filename}")
                     else:
                         print(f"⚠️ WARNING: Hash mismatch for {current_filename}. Possible corruption or tampering.")
+                        print(f"Expected: {original_hash}")
+                        print(f"Received: {final_hash}")
 
                 # Reset variables
                 current_filename = None
@@ -133,3 +137,4 @@ except KeyboardInterrupt:
 finally:
     radio.stopListening()
     print("📴 Radio stopped listening.")
+
