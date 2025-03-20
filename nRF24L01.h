@@ -91,3 +91,19 @@ try:
 
 except KeyboardInterrupt:
     print("\n🛑 Receiver stopped by user.")
+
+
+
+
+        📡 Receiver is listening...
+📥 Receiving: Death.enc
+Traceback (most recent call last):
+  File "/home/admin/darksaber/juliet.py", line 82, in <module>
+    decrypt_file(received_path, decrypted_path, key)
+  File "/home/admin/darksaber/juliet.py", line 49, in decrypt_file
+    cipher = ChaCha20.new(key=key, nonce=nonce)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/Cryptodome/Cipher/ChaCha20.py", line 276, in new
+    raise ValueError("Nonce must be 8/12 bytes(ChaCha20) or 24 bytes (XChaCha20)")
+ValueError: Nonce must be 8/12 bytes(ChaCha20) or 24 bytes (XChaCha20)
+
