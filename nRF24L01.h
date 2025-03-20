@@ -1,3 +1,4 @@
+
 import os
 import time
 import hashlib
@@ -9,7 +10,7 @@ from RF24 import RF24, rf24_datarate_e, RF24_PA_LOW
 RECEIVE_FOLDER = "received_images"
 DECRYPTED_FOLDER = "decrypted_images"
 PAYLOAD_SIZE = 32  # Must match sender's payload size
-EXPECTED_IMAGE_SIZE = (1024, 1024)
+EXPECTED_IMAGE_SIZE = (256, 256)
 HASH_SIZE = 64  # SHA-256 hash length in hex
 
 # Create necessary folders
@@ -57,10 +58,10 @@ def decrypt_file(input_filepath, output_filepath, key):
         encrypted_data = file.read()
     
     cipher = ChaCha20.new(key=key, nonce=nonce)
-    decrypted_data = cipher.decrypt(encrypted_data)  # FIXED: Removed .rstrip(b'\0')
+    decrypted_data = cipher.decrypt(encrypted_data)  # FIXED: No .rstrip()
 
-    # Extract the original hash without stripping valid characters
-    original_hash = decrypted_data[:HASH_SIZE].decode("utf-8").rstrip()  # FIXED: No .strip().lower()
+    # Extract the original hash correctly (NO stripping/trimming)
+    original_hash = decrypted_data[:HASH_SIZE].decode("utf-8")  
 
     image_data = decrypted_data[HASH_SIZE:]  # Extract image data
 
@@ -107,18 +108,20 @@ try:
                     decrypted_path = os.path.join(DECRYPTED_FOLDER, os.path.splitext(current_filename)[0] + ".png")
                     original_hash = decrypt_file(received_path, decrypted_path, key)
 
+                    # Hash the decrypted image BEFORE resizing!
+                    final_hash = hash_file(decrypted_path)
+
                     # Resize image
                     resized_path = os.path.join(DECRYPTED_FOLDER, "resized_" + os.path.basename(decrypted_path))
                     resize_image(decrypted_path, resized_path, EXPECTED_IMAGE_SIZE)
 
                     # Verify integrity
-                    final_hash = hash_file(resized_path)
                     if original_hash == final_hash:
                         print(f"✅ Image integrity verified: {current_filename}")
                     else:
                         print(f"⚠️ WARNING: Hash mismatch for {current_filename}. Possible corruption or tampering.")
-                        print(f"Expected: {original_hash}")
-                        print(f"Received: {final_hash}")
+                        print(f"Expected Hash: {original_hash}")
+                        print(f"Received Hash: {final_hash}")
 
                 # Reset variables
                 current_filename = None
@@ -137,4 +140,3 @@ except KeyboardInterrupt:
 finally:
     radio.stopListening()
     print("📴 Radio stopped listening.")
-
