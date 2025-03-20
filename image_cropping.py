@@ -65,7 +65,7 @@ def save_cropped_circles(image_dict, path):
 
 # # input_path is the path for an individual .png file
 # # output_path is where the cropped image will be saved to
-# input_path = "./assets/all_images/deathstar/ai_deathstar3.png"
+# input_path = "./assets/all_images/deathstar/ai_deathstar4.png"
 # output_path = "./tests/autocrop_output/"
 
 # # to crop the images, use crop_image(file_path) and save the resulting cropped circles into a variable
