@@ -1,4 +1,3 @@
-
 import os
 import time
 import hashlib
@@ -58,12 +57,13 @@ def decrypt_file(input_filepath, output_filepath, key):
         encrypted_data = file.read()
     
     cipher = ChaCha20.new(key=key, nonce=nonce)
-    decrypted_data = cipher.decrypt(encrypted_data)  # FIXED: No .rstrip()
+    decrypted_data = cipher.decrypt(encrypted_data)
 
-    # Extract the original hash correctly (NO stripping/trimming)
-    original_hash = decrypted_data[:HASH_SIZE].decode("utf-8")  
+    # Extract the original hash
+    original_hash = decrypted_data[:HASH_SIZE].decode("utf-8")
+    print(f"📥 [RECEIVER] Extracted Hash (After Decryption): {original_hash}")
 
-    image_data = decrypted_data[HASH_SIZE:]  # Extract image data
+    image_data = decrypted_data[HASH_SIZE:]
 
     with open(output_filepath, "wb") as out_file:
         out_file.write(image_data)
@@ -99,10 +99,14 @@ try:
                         print(f"❌ Received file is too small. Possible corruption.")
                         continue
                     
-                    # Save received encrypted file
+                    # Save received encrypted file for debugging
                     received_path = os.path.join(RECEIVE_FOLDER, current_filename)
                     with open(received_path, "wb") as f:
                         f.write(ordered_data)
+
+                    with open("debug_received.enc", "wb") as debug_file:
+                        debug_file.write(ordered_data)
+                    print("🛠 [DEBUG] Saved received encrypted file as 'debug_received.enc'")
 
                     # Decrypt the file
                     decrypted_path = os.path.join(DECRYPTED_FOLDER, os.path.splitext(current_filename)[0] + ".png")
@@ -119,7 +123,7 @@ try:
                     if original_hash == final_hash:
                         print(f"✅ Image integrity verified: {current_filename}")
                     else:
-                        print(f"⚠️ WARNING: Hash mismatch for {current_filename}. Possible corruption or tampering.")
+                        print(f"⚠️ WARNING: Hash mismatch for {current_filename}.")
                         print(f"Expected Hash: {original_hash}")
                         print(f"Received Hash: {final_hash}")
 
