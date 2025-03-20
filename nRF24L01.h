@@ -1,5 +1,4 @@
 
-
 import os
 import time
 from Cryptodome.Cipher import ChaCha20
@@ -10,7 +9,7 @@ from RF24 import RF24, rf24_datarate_e, RF24_PA_LOW
 RECEIVE_FOLDER = "received_images"
 DECRYPTED_FOLDER = "decrypted_images"
 PAYLOAD_SIZE = 32  # Must match sender's payload size
-EXPECTED_IMAGE_SIZE = (256, 256)
+TARGET_SIZE = (1024, 1024)  # Resize to 1024x1024 after decryption
 
 # Create necessary folders
 os.makedirs(RECEIVE_FOLDER, exist_ok=True)
@@ -69,10 +68,12 @@ def decrypt_file(input_filepath, output_filepath, key):
     print(f"✅ Successfully decrypted {input_filepath} -> {output_filepath}")
 
 def resize_image(image_path, output_path, target_size):
-    """Resize the image to the expected dimensions."""
+    """Resize the image to the expected dimensions (1024x1024) and save uncompressed."""
     with Image.open(image_path) as img:
         img = img.resize(target_size, Image.LANCZOS)
-        img.save(output_path, "PNG")
+        img.save(output_path, "PNG", compress_level=0)  # Save uncompressed
+
+    print(f"📏 Resized and saved uncompressed: {output_path}")
 
 try:
     while True:
@@ -112,9 +113,9 @@ try:
                     decrypted_path = os.path.join(DECRYPTED_FOLDER, os.path.splitext(current_filename)[0] + ".png")
                     decrypt_file(received_path, decrypted_path, key)
 
-                    # Resize the image after successful decryption
-                    resized_path = os.path.join(DECRYPTED_FOLDER, "resized_" + os.path.basename(decrypted_path))
-                    resize_image(decrypted_path, resized_path, EXPECTED_IMAGE_SIZE)
+                    # Resize the image to 1024x1024 after decryption
+                    final_path = os.path.join(DECRYPTED_FOLDER, "final_" + os.path.basename(decrypted_path))
+                    resize_image(decrypted_path, final_path, TARGET_SIZE)
 
                 # Reset variables
                 current_filename = None
