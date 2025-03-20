@@ -1,128 +1,136 @@
-/*
-    Copyright (c) 2007 Stefan Engelke <mbox@stefanengelke.de>
-    Portions Copyright (C) 2011 Greg Copeland
 
-    Permission is hereby granted, free of charge, to any person
-    obtaining a copy of this software and associated documentation
-    files (the "Software"), to deal in the Software without
-    restriction, including without limitation the rights to use, copy,
-    modify, merge, publish, distribute, sublicense, and/or sell copies
-    of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
+import os
+import time
+from Cryptodome.Cipher import ChaCha20
+from PIL import Image
+from RF24 import RF24, rf24_datarate_e, RF24_PA_LOW
 
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
+# === CONFIGURATION ===
+RECEIVE_FOLDER = "received_images"
+DECRYPTED_FOLDER = "decrypted_images"
+PAYLOAD_SIZE = 32  # Must match sender's payload size
+TARGET_SIZE = (1024, 1024)  # Resize to 1024x1024 after decryption
 
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-    DEALINGS IN THE SOFTWARE.
-*/
+# Create necessary folders
+os.makedirs(RECEIVE_FOLDER, exist_ok=True)
+os.makedirs(DECRYPTED_FOLDER, exist_ok=True)
 
-/* Memory Map */
-#define NRF_CONFIG  0x00
-#define EN_AA       0x01
-#define EN_RXADDR   0x02
-#define SETUP_AW    0x03
-#define SETUP_RETR  0x04
-#define RF_CH       0x05
-#define RF_SETUP    0x06
-#define NRF_STATUS  0x07
-#define OBSERVE_TX  0x08
-#define CD          0x09
-#define RX_ADDR_P0  0x0A
-#define RX_ADDR_P1  0x0B
-#define RX_ADDR_P2  0x0C
-#define RX_ADDR_P3  0x0D
-#define RX_ADDR_P4  0x0E
-#define RX_ADDR_P5  0x0F
-#define TX_ADDR     0x10
-#define RX_PW_P0    0x11
-#define RX_PW_P1    0x12
-#define RX_PW_P2    0x13
-#define RX_PW_P3    0x14
-#define RX_PW_P4    0x15
-#define RX_PW_P5    0x16
-#define FIFO_STATUS 0x17
-#define DYNPD       0x1C
-#define FEATURE     0x1D
+# Define encryption key (must match sender's key)
+key = b"0123456789abcdef0123456789abcdef"  # Example key (32 bytes)
 
-/* Bit Mnemonics */
-#define MASK_RX_DR  6
-#define MASK_TX_DS  5
-#define MASK_MAX_RT 4
-#define EN_CRC      3
-#define CRCO        2
-#define PWR_UP      1
-#define PRIM_RX     0
-#define ENAA_P5     5
-#define ENAA_P4     4
-#define ENAA_P3     3
-#define ENAA_P2     2
-#define ENAA_P1     1
-#define ENAA_P0     0
-#define ERX_P5      5
-#define ERX_P4      4
-#define ERX_P3      3
-#define ERX_P2      2
-#define ERX_P1      1
-#define ERX_P0      0
-#define AW          0
-#define ARD         4
-#define ARC         0
-#define PLL_LOCK    4
-#define CONT_WAVE   7
-#define RF_DR       3
-#define RF_PWR      6
-#define RX_DR       6
-#define TX_DS       5
-#define MAX_RT      4
-#define RX_P_NO     1
-#define TX_FULL     0
-#define PLOS_CNT    4
-#define ARC_CNT     0
-#define TX_REUSE    6
-#define FIFO_FULL   5
-#define TX_EMPTY    4
-#define RX_FULL     1
-#define RX_EMPTY    0
-#define DPL_P5      5
-#define DPL_P4      4
-#define DPL_P3      3
-#define DPL_P2      2
-#define DPL_P1      1
-#define DPL_P0      0
-#define EN_DPL      2
-#define EN_ACK_PAY  1
-#define EN_DYN_ACK  0
+# === Initialize RF24 ===
+radio = RF24(17, 0)
 
-/* Instruction Mnemonics */
-#define R_REGISTER    0x00
-#define W_REGISTER    0x20
-#define REGISTER_MASK 0x1F
-#define ACTIVATE      0x50
-#define R_RX_PL_WID   0x60
-#define R_RX_PAYLOAD  0x61
-#define W_TX_PAYLOAD  0xA0
-#define W_ACK_PAYLOAD 0xA8
-#define FLUSH_TX      0xE1
-#define FLUSH_RX      0xE2
-#define REUSE_TX_PL   0xE3
-#define RF24_NOP      0xFF
+if not radio.begin():
+    print("❌ NRF24 module not responding")
+    exit()
 
-/* Non-P omissions */
-#define LNA_HCURR 0
+radio.setPALevel(RF24_PA_LOW)
+radio.setDataRate(rf24_datarate_e.RF24_2MBPS)
+radio.setChannel(76)
+radio.setPayloadSize(PAYLOAD_SIZE)
+radio.setAutoAck(True)
+radio.setRetries(5, 15)
 
-/* P model memory Map */
-#define RPD                 0x09
-#define W_TX_PAYLOAD_NO_ACK 0xB0
+radio.openReadingPipe(1, 0xF0F0F0F0E1)
+radio.startListening()
 
-/* P model bit Mnemonics */
-#define RF_DR_LOW   5
-#define RF_DR_HIGH  3
-#define RF_PWR_LOW  1
-#define RF_PWR_HIGH 2
+print("📡 Receiver is listening...")
+
+# === Variables to manage file reception ===
+current_filename = None
+chunks = {}
+
+def decrypt_file(input_filepath, output_filepath, key):
+    """Decrypts a file using ChaCha20, ensuring the nonce is valid."""
+    with open(input_filepath, "rb") as file:
+        file_data = file.read()
+
+    if len(file_data) < 8:
+        print(f"❌ ERROR: Received file {input_filepath} is too small! Possible corruption.")
+        return  # Exit instead of attempting decryption
+
+    nonce = file_data[:8]  # First 8 bytes should be the nonce
+    encrypted_data = file_data[8:]  # Remaining is the encrypted content
+
+    if len(nonce) != 8:
+        print(f"❌ ERROR: Invalid nonce length ({len(nonce)} bytes) in {input_filepath}")
+        return  # Exit instead of attempting decryption
+
+    print(f"🛠 [DEBUG] Using nonce: {nonce}")
+
+    cipher = ChaCha20.new(key=key, nonce=nonce)
+    decrypted_data = cipher.decrypt(encrypted_data)
+
+    with open(output_filepath, "wb") as out_file:
+        out_file.write(decrypted_data)
+
+    print(f"✅ Successfully decrypted {input_filepath} -> {output_filepath}")
+
+def resize_image(image_path, output_path, target_size):
+    """Resize the image to the expected dimensions (1024x1024) and save uncompressed."""
+    with Image.open(image_path) as img:
+        img = img.resize(target_size, Image.LANCZOS)
+        img.save(output_path, "PNG", compress_level=0)  # Save uncompressed
+
+    print(f"📏 Resized and saved uncompressed: {output_path}")
+
+try:
+    while True:
+        if radio.available():
+            received_payload = radio.read(PAYLOAD_SIZE)
+            message = received_payload.decode('utf-8', errors='ignore').strip()
+
+            if message.startswith("START:"):
+                current_filename = message.split(":", 1)[1].strip()
+                chunks = {}
+                print(f"📥 Receiving: {current_filename}")
+
+            elif message.startswith("END:"):
+                end_filename = message.split(":", 1)[1].strip()
+                if current_filename == end_filename:
+                    print(f"🔄 Finalizing {current_filename}...")
+
+                    # Ensure we received all chunks
+                    ordered_data = b''.join([chunks[i] for i in sorted(chunks.keys())])
+
+                    # Check received file size
+                    if len(ordered_data) < 8:
+                        print(f"❌ ERROR: Received file is too small! Possible corruption.")
+                        continue
+
+                    # Save received encrypted file
+                    received_path = os.path.join(RECEIVE_FOLDER, current_filename)
+                    with open(received_path, "wb") as f:
+                        f.write(ordered_data)
+
+                    # Debugging: Print first 16 bytes of the received file
+                    with open(received_path, "rb") as f:
+                        debug_data = f.read(16)
+                    print(f"🛠 [DEBUG] First 16 bytes of {current_filename}: {debug_data}")
+
+                    # Decrypt the file
+                    decrypted_path = os.path.join(DECRYPTED_FOLDER, os.path.splitext(current_filename)[0] + ".png")
+                    decrypt_file(received_path, decrypted_path, key)
+
+                    # Resize the image to 1024x1024 after decryption
+                    final_path = os.path.join(DECRYPTED_FOLDER, "final_" + os.path.basename(decrypted_path))
+                    resize_image(decrypted_path, final_path, TARGET_SIZE)
+
+                # Reset variables
+                current_filename = None
+                chunks = {}
+
+            elif current_filename and len(received_payload) >= 2:
+                seq_num = int.from_bytes(received_payload[:2], 'big')
+                data = received_payload[2:]
+
+                # Debug: Print chunk details
+                print(f"🛠 [DEBUG] Received chunk #{seq_num}, size: {len(data)} bytes")
+
+                chunks[seq_num] = data
+
+        time.sleep(0.01)
+
+except KeyboardInterrupt:
+    print("\n🛑 Receiver stopped by user.")
