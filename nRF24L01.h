@@ -42,32 +42,31 @@ print("📡 Receiver is listening...")
 current_filename = None
 chunks = {}
 
-def hash_file(filename, hash_algorithm="sha256", buffer_size=65536):
-    """Compute the SHA-256 hash of a file."""
-    hasher = getattr(hashlib, hash_algorithm)()
-    with open(filename, "rb") as file:
-        while chunk := file.read(buffer_size):
-            hasher.update(chunk)
+def hash_raw_data(data, hash_algorithm="sha256"):
+    """Compute SHA-256 hash directly from raw image data."""
+    hasher = hashlib.new(hash_algorithm)
+    hasher.update(data)
     return hasher.hexdigest()
 
-def decrypt_file(input_filepath, output_filepath, key):
+def decrypt_file(input_filepath, key):
     """Decrypts a file using ChaCha20 and extracts the original hash."""
     with open(input_filepath, "rb") as file:
         nonce = file.read(8)
         encrypted_data = file.read()
     
     cipher = ChaCha20.new(key=key, nonce=nonce)
-    decrypted_data = cipher.decrypt(encrypted_data)  # FIXED: No .rstrip()
+    decrypted_data = cipher.decrypt(encrypted_data)
 
-    # Extract the original hash correctly (NO stripping/trimming)
-    original_hash = decrypted_data[:HASH_SIZE].decode("utf-8")  
+    # Extract the original hash and remove any padding
+    original_hash = decrypted_data[:HASH_SIZE].decode("utf-8", errors="ignore").rstrip('0')
 
-    image_data = decrypted_data[HASH_SIZE:]  # Extract image data
+    # Extract image data
+    image_data = decrypted_data[HASH_SIZE:]
 
-    with open(output_filepath, "wb") as out_file:
-        out_file.write(image_data)
+    # Compute hash before saving
+    final_hash = hash_raw_data(image_data)
 
-    return original_hash
+    return original_hash, final_hash, image_data
 
 def resize_image(image_path, output_path, target_size):
     """Resize the image to the expected dimensions."""
@@ -103,24 +102,25 @@ try:
                     with open(received_path, "wb") as f:
                         f.write(ordered_data)
 
-                    # Decrypt the file
-                    decrypted_path = os.path.join(DECRYPTED_FOLDER, os.path.splitext(current_filename)[0] + ".png")
-                    original_hash = decrypt_file(received_path, decrypted_path, key)
+                    # Decrypt the file and verify integrity
+                    original_hash, final_hash, decrypted_data = decrypt_file(received_path, key)
 
-                    # Hash the decrypted image BEFORE resizing!
-                    final_hash = hash_file(decrypted_path)
-
-                    # Resize image
-                    resized_path = os.path.join(DECRYPTED_FOLDER, "resized_" + os.path.basename(decrypted_path))
-                    resize_image(decrypted_path, resized_path, EXPECTED_IMAGE_SIZE)
-
-                    # Verify integrity
+                    # Verify integrity BEFORE writing to disk
                     if original_hash == final_hash:
                         print(f"✅ Image integrity verified: {current_filename}")
                     else:
                         print(f"⚠️ WARNING: Hash mismatch for {current_filename}. Possible corruption or tampering.")
                         print(f"Expected Hash: {original_hash}")
                         print(f"Received Hash: {final_hash}")
+
+                    # Save decrypted file if hash matches
+                    decrypted_path = os.path.join(DECRYPTED_FOLDER, os.path.splitext(current_filename)[0] + ".png")
+                    with open(decrypted_path, "wb") as out_file:
+                        out_file.write(decrypted_data)
+
+                    # Resize image after verification
+                    resized_path = os.path.join(DECRYPTED_FOLDER, "resized_" + os.path.basename(decrypted_path))
+                    resize_image(decrypted_path, resized_path, EXPECTED_IMAGE_SIZE)
 
                 # Reset variables
                 current_filename = None
