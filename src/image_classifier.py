@@ -14,6 +14,9 @@ def get_file_paths(directory):
         for file in files:
             filtered_path = os.path.join(root, file).replace("\\", "/")
             file_paths.append(filtered_path)
+
+    with open("output.txt", "w") as file:
+        [file.write(path + "\n") for path in file_paths]
     return file_paths
 
 def display_hogImage(image, hogImage, pred, i):
