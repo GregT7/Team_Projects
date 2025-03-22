@@ -8,6 +8,10 @@ import numpy as np
 import cv2
 import shutil
 
+def write_to_text(path, str_list):
+    with open(path, "a") as file:
+        [file.write(path + "\n") for path in str_list]
+
 def get_file_paths(directory):
     file_paths = []
     for root, dirs, files in os.walk(directory):
@@ -15,8 +19,6 @@ def get_file_paths(directory):
             filtered_path = os.path.join(root, file).replace("\\", "/")
             file_paths.append(filtered_path)
 
-    with open("output.txt", "w") as file:
-        [file.write(path + "\n") for path in file_paths]
     return file_paths
 
 def display_hogImage(image, hogImage, pred, i):
@@ -152,12 +154,16 @@ def extract_features(params):
     train_paths = get_file_paths(params['train_path'])
 
     # loop over the image paths in the training set
+    img_strs = []
     for imagePath in train_paths:
         # extract image class: deathstar or non-deathstar
         img_class = imagePath.split("/")[-2]
         
         # load the image, convert it to grayscale, and detect edges
         image = cv2.imread(imagePath)
+
+        img_strs.append(extract_text(imagePath, image))
+
         image = cv2.resize(image, (1024, 1024))
 
         feature_data = extract_feature_data(image, params)
@@ -165,6 +171,8 @@ def extract_features(params):
         data.append(feature_data)
         labels.append(img_class)
 
+    
+    write_to_text("image_sizes.txt", img_strs)
     return {'data': format_data(data, params), 'labels': labels}
 
 
@@ -200,6 +208,12 @@ def train_model(data, labels, params):
     kNN = {'model': model, 'scalers': scalers}
     return kNN
 
+def extract_text(imagePath, image):
+    img_str = imagePath.split("/")[-3] + " " + imagePath.split("/")[-2]
+    img_str += " " + imagePath.split("/")[-1]
+    img_str += " osize: " + str(image.size)
+    return img_str
+
 def test_model(kNN, params, move_files=False):
     print("[INFO] evaluating...")
     
@@ -211,9 +225,13 @@ def test_model(kNN, params, move_files=False):
     total_deathstar = total_nondeathstar = 0
     correct_deathstar = correct_nondeathstar = 0
     misclassified_images = []
+    img_strs = []
     for imagePath in test_paths:
         img_class = imagePath.split("/")[-2]
         image = cv2.imread(imagePath)
+
+        img_strs.append(extract_text(imagePath, image))
+
         image = cv2.resize(image, (1024, 1024))
         feature_data = extract_feature_data(image, params)
 
@@ -241,6 +259,7 @@ def test_model(kNN, params, move_files=False):
             imagePath
         i += 1
 
+    write_to_text("image_sizes.txt", img_strs)
     ds = {'total': total_deathstar, 'accurate': correct_deathstar}
     nds = {'total': total_nondeathstar, 'accurate': correct_nondeathstar}
 
