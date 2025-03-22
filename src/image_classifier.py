@@ -182,7 +182,7 @@ def extract_features(params):
         labels.append(img_class)
 
     img_strs.sort()
-    write_to_text("md5_original.txt", img_strs)
+    # write_to_text("md5_original.txt", img_strs)
     return {'data': format_data(data, params), 'labels': labels}
 
 
@@ -202,8 +202,8 @@ def train_model(data, labels, params):
 
         scaler_circles = StandardScaler().fit(data['circles'])
         circles_scaled = scaler_circles.transform(data['circles'])
-        training_dict['circles'] = circles_scaled * params['weight']['circles']
-        print(training_dict['circles'].dtype)
+        training_dict['circles'] = circles_scaled.astype(np.float64) * params['weight']['circles']
+        # print(training_dict['circles'].dtype)
 
         # npa = np.asarray(training_dict['circles'], dtype=np.float32)
         # np.savetxt("scaled_circles_data.txt", npa, fmt="%.10f")
@@ -281,7 +281,7 @@ def test_model(kNN, params, move_files=False):
         i += 1
 
     img_strs.sort()
-    write_to_text("md5_original.txt", img_strs)
+    # write_to_text("md5_original.txt", img_strs)
     ds = {'total': total_deathstar, 'accurate': correct_deathstar}
     nds = {'total': total_nondeathstar, 'accurate': correct_nondeathstar}
 
@@ -308,7 +308,7 @@ def scale_data(feature_data, kNN, params):
     if 'circles' in params['fsel']:
         circles_data = np.array(feature_data['circles']).reshape(1, -1)
         test_circles_scaled = kNN['scalers']['circles'].transform(circles_data)
-        data_dict['circles'] = test_circles_scaled * params['weight']['circles']
+        data_dict['circles'] = test_circles_scaled.astype(np.float64) * params['weight']['circles']
 
     if 'hist' in params['fsel']:
         hist_data = np.array(feature_data['hist']).reshape(1, -1)
