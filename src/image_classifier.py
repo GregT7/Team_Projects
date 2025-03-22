@@ -193,6 +193,10 @@ def train_model(data, labels, params):
         scalers['hog'] = scaler_hog
     
     if 'circles' in params['fsel']:
+        # np.savetxt("scaling_data.txt", data['circles'], fmt="%.10f")
+        npa = np.asarray(data['circles'], dtype=np.float32)
+        # np.savetxt("circles_data.txt", npa, fmt="%.10f")
+        print(f"non-scaled circles -- min: {npa.min()}, max: {npa.max()}")
         scaler_circles = StandardScaler().fit(data['circles'])
         circles_scaled = scaler_circles.transform(data['circles'])
         training_dict['circles'] = circles_scaled * params['weight']['circles']
