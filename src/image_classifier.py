@@ -12,6 +12,9 @@ def write_to_text(path, str_list):
     with open(path, "a") as file:
         [file.write(path + "\n") for path in str_list]
 
+
+
+
 def get_file_paths(directory):
     file_paths = []
     for root, dirs, files in os.walk(directory):
@@ -154,7 +157,7 @@ def extract_features(params):
     train_paths = get_file_paths(params['train_path'])
 
     # loop over the image paths in the training set
-    img_strs = []
+    # img_strs = []
     for imagePath in train_paths:
         # extract image class: deathstar or non-deathstar
         img_class = imagePath.split("/")[-2]
@@ -165,15 +168,15 @@ def extract_features(params):
         
 
         image = cv2.resize(image, (1024, 1024))
-        img_strs.append(extract_text(imagePath, image))
+        # img_strs.append(extract_text(imagePath, image))
 
         feature_data = extract_feature_data(image, params)
 
         data.append(feature_data)
         labels.append(img_class)
 
-    img_strs.sort()
-    write_to_text("resized_image_sizes.txt", img_strs)
+    # img_strs.sort()
+    # write_to_text("resized_image_sizes.txt", img_strs)
     return {'data': format_data(data, params), 'labels': labels}
 
 
@@ -206,6 +209,8 @@ def train_model(data, labels, params):
     # "train" the nearest neighbors classifier
     print("[INFO] training classifier...")
     model.fit(training_data, labels)
+    # write_to_text("training_test.txt", training_data)
+    np.savetxt("training_test.txt", training_data, fmt="%.10f") 
     kNN = {'model': model, 'scalers': scalers}
     return kNN
 
@@ -226,7 +231,7 @@ def test_model(kNN, params, move_files=False):
     total_deathstar = total_nondeathstar = 0
     correct_deathstar = correct_nondeathstar = 0
     misclassified_images = []
-    img_strs = []
+    # img_strs = []
     for imagePath in test_paths:
         img_class = imagePath.split("/")[-2]
         image = cv2.imread(imagePath)
@@ -234,7 +239,7 @@ def test_model(kNN, params, move_files=False):
         
 
         image = cv2.resize(image, (1024, 1024))
-        img_strs.append(extract_text(imagePath, image))
+        # img_strs.append(extract_text(imagePath, image))
         feature_data = extract_feature_data(image, params)
 
         scaled_data = scale_data(feature_data, kNN, params)
@@ -261,8 +266,8 @@ def test_model(kNN, params, move_files=False):
             imagePath
         i += 1
 
-    img_strs.sort()
-    write_to_text("resized_image_sizes.txt", img_strs)
+    # img_strs.sort()
+    # write_to_text("resized_image_sizes.txt", img_strs)
     ds = {'total': total_deathstar, 'accurate': correct_deathstar}
     nds = {'total': total_nondeathstar, 'accurate': correct_nondeathstar}
 
