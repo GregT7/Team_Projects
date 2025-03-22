@@ -162,17 +162,18 @@ def extract_features(params):
         # load the image, convert it to grayscale, and detect edges
         image = cv2.imread(imagePath)
 
-        img_strs.append(extract_text(imagePath, image))
+        
 
         image = cv2.resize(image, (1024, 1024))
+        img_strs.append(extract_text(imagePath, image))
 
         feature_data = extract_feature_data(image, params)
 
         data.append(feature_data)
         labels.append(img_class)
 
-    
-    write_to_text("image_sizes.txt", img_strs)
+    img_strs.sort()
+    write_to_text("resized_image_sizes.txt", img_strs)
     return {'data': format_data(data, params), 'labels': labels}
 
 
@@ -230,9 +231,10 @@ def test_model(kNN, params, move_files=False):
         img_class = imagePath.split("/")[-2]
         image = cv2.imread(imagePath)
 
-        img_strs.append(extract_text(imagePath, image))
+        
 
         image = cv2.resize(image, (1024, 1024))
+        img_strs.append(extract_text(imagePath, image))
         feature_data = extract_feature_data(image, params)
 
         scaled_data = scale_data(feature_data, kNN, params)
@@ -259,7 +261,8 @@ def test_model(kNN, params, move_files=False):
             imagePath
         i += 1
 
-    write_to_text("image_sizes.txt", img_strs)
+    img_strs.sort()
+    write_to_text("resized_image_sizes.txt", img_strs)
     ds = {'total': total_deathstar, 'accurate': correct_deathstar}
     nds = {'total': total_nondeathstar, 'accurate': correct_nondeathstar}
 
