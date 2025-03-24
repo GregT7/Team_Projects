@@ -161,6 +161,8 @@ def extract_features(params):
     labels = []
 
     train_paths = get_file_paths(params['train_path'])
+    write_to_text("path_names.txt", train_paths)
+    # print(train_paths)
 
     # loop over the image paths in the training set
     img_strs = []
