@@ -3,7 +3,7 @@ from image_classifier import parse_feature_select
 # training/testing paths
 train_dir = "../assets/test_cases/test_case21.267/train/"
 test_dir = "../assets/test_cases/test_case21.267/test/"
-out_dir = "../assets/test_cases/test_case21.334/output/"
+out_dir = "./images"
 
 
 # kNN - number of neighbors
