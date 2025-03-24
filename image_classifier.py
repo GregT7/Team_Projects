@@ -7,6 +7,7 @@ import os
 import numpy as np
 import cv2
 import shutil
+import hashlib
 
 def get_file_paths(directory):
     file_paths = []
@@ -14,6 +15,7 @@ def get_file_paths(directory):
         for file in files:
             filtered_path = os.path.join(root, file).replace("\\", "/")
             file_paths.append(filtered_path)
+
     return file_paths
 
 def display_hogImage(image, hogImage, pred, i):
@@ -147,16 +149,16 @@ def extract_features(params):
     labels = []
 
     train_paths = get_file_paths(params['train_path'])
+    train_paths.sort()
 
     # loop over the image paths in the training set
     for imagePath in train_paths:
         # extract image class: deathstar or non-deathstar
         img_class = imagePath.split("/")[-2]
         
-        # load the image, convert it to grayscale, and detect edges
+        # load image, resize it, and extract parameter data
         image = cv2.imread(imagePath)
         image = cv2.resize(image, (1024, 1024))
-
         feature_data = extract_feature_data(image, params)
 
         data.append(feature_data)
@@ -170,7 +172,6 @@ def train_model(data, labels, params):
     training_dict = {}
     scalers = {}
     
-    # result = np.hstack(tuple(data.values()))
     if 'hog' in params['fsel']:
         scaler_hog = StandardScaler().fit(data['hog'])
         hog_scaled = scaler_hog.transform(data['hog'])
@@ -180,7 +181,7 @@ def train_model(data, labels, params):
     if 'circles' in params['fsel']:
         scaler_circles = StandardScaler().fit(data['circles'])
         circles_scaled = scaler_circles.transform(data['circles'])
-        training_dict['circles'] = circles_scaled * params['weight']['circles']
+        training_dict['circles'] = circles_scaled.astype(np.float64) * params['weight']['circles']
         scalers['circles'] = scaler_circles
 
     if 'hist' in params['fsel']:
@@ -194,6 +195,7 @@ def train_model(data, labels, params):
     # "train" the nearest neighbors classifier
     print("[INFO] training classifier...")
     model.fit(training_data, labels)
+    np.savetxt("training_test.txt", training_data, fmt="%.10f") 
     kNN = {'model': model, 'scalers': scalers}
     return kNN
 
@@ -213,7 +215,6 @@ def test_model(kNN, params, move_files=False):
         image = cv2.imread(imagePath)
         image = cv2.resize(image, (1024, 1024))
         feature_data = extract_feature_data(image, params)
-
         scaled_data = scale_data(feature_data, kNN, params)
 
         pred = kNN['model'].predict(scaled_data)
@@ -247,7 +248,6 @@ def test_model(kNN, params, move_files=False):
     stats = {'ds': ds, 'nds':nds, 'misclassified_images': misclassified_images}
     return stats
 
-
 def scale_data(feature_data, kNN, params):
     data_dict = {}
     if 'hog' in params['fsel']:
@@ -258,7 +258,7 @@ def scale_data(feature_data, kNN, params):
     if 'circles' in params['fsel']:
         circles_data = np.array(feature_data['circles']).reshape(1, -1)
         test_circles_scaled = kNN['scalers']['circles'].transform(circles_data)
-        data_dict['circles'] = test_circles_scaled * params['weight']['circles']
+        data_dict['circles'] = test_circles_scaled.astype(np.float64) * params['weight']['circles']
 
     if 'hist' in params['fsel']:
         hist_data = np.array(feature_data['hist']).reshape(1, -1)
@@ -276,3 +276,14 @@ def parse_feature_select(weight):
     if weight['hist'] > 0:
         fsel.append('hist')
     return fsel
+
+# debugging functions
+def write_to_text(path, str_list):
+    with open(path, "a") as file:
+        [file.write(path + "\n") for path in str_list]
+
+def extract_text(imagePath, image):
+    img_str = imagePath.split("/")[-3] + " " + imagePath.split("/")[-2]
+    img_str += " " + imagePath.split("/")[-1]
+    img_str += " md5: " + str(md5sum(imagePath))
+    return img_str
