@@ -9,18 +9,6 @@ import cv2
 import shutil
 import hashlib
 
-def md5_from_array(image_array):
-    hasher = hashlib.md5()
-    hasher.update(image_array.tobytes())  # Convert array to bytes
-    return hasher.hexdigest()
-
-def write_to_text(path, str_list):
-    with open(path, "a") as file:
-        [file.write(path + "\n") for path in str_list]
-
-
-
-
 def get_file_paths(directory):
     file_paths = []
     for root, dirs, files in os.walk(directory):
@@ -162,30 +150,20 @@ def extract_features(params):
 
     train_paths = get_file_paths(params['train_path'])
     train_paths.sort()
-    write_to_text("new_path_names.txt", train_paths)
-    # print(train_paths)
 
     # loop over the image paths in the training set
-    img_strs = []
     for imagePath in train_paths:
         # extract image class: deathstar or non-deathstar
         img_class = imagePath.split("/")[-2]
         
-        # load the image, convert it to grayscale, and detect edges
+        # load image, resize it, and extract parameter data
         image = cv2.imread(imagePath)
-
-        
-
         image = cv2.resize(image, (1024, 1024))
-        img_strs.append(extract_text(imagePath, image))
-
         feature_data = extract_feature_data(image, params)
 
         data.append(feature_data)
         labels.append(img_class)
 
-    img_strs.sort()
-    # write_to_text("md5_original.txt", img_strs)
     return {'data': format_data(data, params), 'labels': labels}
 
 
@@ -194,7 +172,6 @@ def train_model(data, labels, params):
     training_dict = {}
     scalers = {}
     
-    # result = np.hstack(tuple(data.values()))
     if 'hog' in params['fsel']:
         scaler_hog = StandardScaler().fit(data['hog'])
         hog_scaled = scaler_hog.transform(data['hog'])
@@ -202,16 +179,9 @@ def train_model(data, labels, params):
         scalers['hog'] = scaler_hog
     
     if 'circles' in params['fsel']:
-
         scaler_circles = StandardScaler().fit(data['circles'])
         circles_scaled = scaler_circles.transform(data['circles'])
         training_dict['circles'] = circles_scaled.astype(np.float64) * params['weight']['circles']
-        # print(training_dict['circles'].dtype)
-
-        # npa = np.asarray(training_dict['circles'], dtype=np.float32)
-        # np.savetxt("scaled_circles_data.txt", npa, fmt="%.10f")
-        # print(f"non-scaled circles -- min: {npa.min()}, max: {npa.max()}")
-
         scalers['circles'] = scaler_circles
 
     if 'hist' in params['fsel']:
@@ -225,17 +195,9 @@ def train_model(data, labels, params):
     # "train" the nearest neighbors classifier
     print("[INFO] training classifier...")
     model.fit(training_data, labels)
-    # write_to_text("training_test.txt", training_data)
     np.savetxt("training_test.txt", training_data, fmt="%.10f") 
     kNN = {'model': model, 'scalers': scalers}
     return kNN
-
-def extract_text(imagePath, image):
-    img_str = imagePath.split("/")[-3] + " " + imagePath.split("/")[-2]
-    img_str += " " + imagePath.split("/")[-1]
-    img_str += " md5: " + str(md5sum(imagePath))
-    # img_str += " md5: " + str(md5_from_array(image))
-    return img_str
 
 def test_model(kNN, params, move_files=False):
     print("[INFO] evaluating...")
@@ -248,17 +210,11 @@ def test_model(kNN, params, move_files=False):
     total_deathstar = total_nondeathstar = 0
     correct_deathstar = correct_nondeathstar = 0
     misclassified_images = []
-    img_strs = []
     for imagePath in test_paths:
         img_class = imagePath.split("/")[-2]
         image = cv2.imread(imagePath)
-
-        
-
         image = cv2.resize(image, (1024, 1024))
-        img_strs.append(extract_text(imagePath, image))
         feature_data = extract_feature_data(image, params)
-
         scaled_data = scale_data(feature_data, kNN, params)
 
         pred = kNN['model'].predict(scaled_data)
@@ -283,8 +239,6 @@ def test_model(kNN, params, move_files=False):
             imagePath
         i += 1
 
-    img_strs.sort()
-    # write_to_text("md5_original.txt", img_strs)
     ds = {'total': total_deathstar, 'accurate': correct_deathstar}
     nds = {'total': total_nondeathstar, 'accurate': correct_nondeathstar}
 
@@ -293,13 +247,6 @@ def test_model(kNN, params, move_files=False):
 
     stats = {'ds': ds, 'nds':nds, 'misclassified_images': misclassified_images}
     return stats
-
-def md5sum(filename):
-    hasher = hashlib.md5()
-    with open(filename, "rb") as f:
-        while chunk := f.read(8192):  # Read in chunks for efficiency
-            hasher.update(chunk)
-    return hasher.hexdigest()
 
 def scale_data(feature_data, kNN, params):
     data_dict = {}
@@ -329,3 +276,14 @@ def parse_feature_select(weight):
     if weight['hist'] > 0:
         fsel.append('hist')
     return fsel
+
+# debugging functions
+def write_to_text(path, str_list):
+    with open(path, "a") as file:
+        [file.write(path + "\n") for path in str_list]
+
+def extract_text(imagePath, image):
+    img_str = imagePath.split("/")[-3] + " " + imagePath.split("/")[-2]
+    img_str += " " + imagePath.split("/")[-1]
+    img_str += " md5: " + str(md5sum(imagePath))
+    return img_str
