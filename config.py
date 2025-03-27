@@ -1,5 +1,11 @@
 from image_classifier import parse_feature_select
 
+# cropping paths
+# listening_path = "./tests/autocrop_input/" # listening - directory that is being watched
+# crop_out_path = "./tests/autocrop_output/" # directory where cropped images will be dumped
+listening_path = "C:/Users/Grego/Desktop/test/input/"
+crop_out_path = "C:/Users/Grego/Desktop/test/output/"
+
 # training/testing paths
 train_dir = "../assets/test_cases/test_case21.267/train/"
 test_dir = "../assets/test_cases/test_case21.267/test/"
