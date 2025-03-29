@@ -9,16 +9,16 @@ from image_classifier import get_file_paths
 
 
 def crop_image(image_path):
+    # setup + path cleaning
     images = []
-    img_name = image_path.split('/')[-1]
-    name = img_name.split('.')[0]
-
+    image_path = image_path.replace('\\', '/')
+    
+    # load in and prep image for processing
     image = cv2.imread(image_path)
     red_px = clf.isolate_red_pixels(image, config.params['red'])
-
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     gray = cv2.medianBlur(gray, 5)
-    rows = gray.shape[0]
+
 
     # my parameters
     circles = cv2.HoughCircles(red_px, cv2.HOUGH_GRADIENT, dp=config.params['circles']['dp'], minDist=config.params['circles']['minDist'],
@@ -33,7 +33,6 @@ def crop_image(image_path):
             ly, hy = y - r, y + r
 
             area_of_interest = image[ly:hy, lx:hx]
-            # gray_image = cv2.cvtColor(area_of_interest, cv2.COLOR_BGR2GRAY)
 
             # create a circular mask
             mask = Image.new('L', [2*r, 2*r], 0)
@@ -50,23 +49,25 @@ def crop_image(image_path):
 
             images.append(cropped_image)
     
-    return {'name': name, 'images': images}
+    img_name = image_path.split('/')[-1].split('.')[0]
+    return {'img_name': img_name, 'images': images}
 
 def save_cropped_circles(image_dict, path):
-    name = image_dict['name']
-    i = 0
-    for circle in image_dict['images']:
+
+    name = image_dict['img_name']
+    for i, circle in enumerate(image_dict['images']):
         new_name = name + "_circle" + str(i) + ".png"
         img_path = path + new_name
-        cv2.imwrite(img_path, circle)
-        i += 1
 
-# uncomment code below to get it work on an individual image
+        cv2.imwrite(img_path, circle)
+
+
+# # uncomment code below to get it work on an individual image
 
 # # input_path is the path for an individual .png file
 # # output_path is where the cropped image will be saved to
-# input_path = "./assets/all_images/deathstar/ai_deathstar4.png"
-# output_path = "./tests/autocrop_output/"
+# input_path = "C:/Users/Grego/Desktop/test/input/image9.png"
+# output_path = "C:/Users/Grego/Desktop/test/output/"
 
 # # to crop the images, use crop_image(file_path) and save the resulting cropped circles into a variable
 # image_dict = crop_image(input_path)
