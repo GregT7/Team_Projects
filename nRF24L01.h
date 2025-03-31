@@ -1,4 +1,3 @@
-
 import os
 import time
 from Cryptodome.Cipher import ChaCha20
@@ -8,13 +7,14 @@ from RF24 import RF24, rf24_datarate_e, RF24_PA_LOW
 # === CONFIGURATION ===
 RECEIVE_FOLDER = "received_images"
 DECRYPTED_FOLDER = "decrypted_images"
+FINAL_FOLDER = "final_images"
 PAYLOAD_SIZE = 32  # Must match sender's payload size
 TARGET_SIZE = (1024, 1024)  # Resize to 1024x1024 after decryption
 
 # Create necessary folders
 os.makedirs(RECEIVE_FOLDER, exist_ok=True)
 os.makedirs(DECRYPTED_FOLDER, exist_ok=True)
-
+os.makedirs(FINAL_FOLDER, exist_ok=True)
 # Define encryption key (must match sender's key)
 key = b"0123456789abcdef0123456789abcdef"  # Example key (32 bytes)
 
@@ -114,7 +114,7 @@ try:
                     decrypt_file(received_path, decrypted_path, key)
 
                     # Resize the image to 1024x1024 after decryption
-                    final_path = os.path.join(DECRYPTED_FOLDER, "final_" + os.path.basename(decrypted_path))
+                    final_path = os.path.join(FINAL_FOLDER, "final_" + os.path.basename(decrypted_path))
                     resize_image(decrypted_path, final_path, TARGET_SIZE)
 
                 # Reset variables
@@ -134,3 +134,5 @@ try:
 
 except KeyboardInterrupt:
     print("\n🛑 Receiver stopped by user.")
+
+
