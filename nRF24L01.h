@@ -87,12 +87,28 @@ try:
                     chunk_list[-1] = chunk_list[-1].rstrip(b'\0')  # Strip last-chunk padding
                     ordered = b''.join(chunk_list)
 
-                    with open("debug_raw_received.enc", "wb") as f:
+                    # Save debug file
+                    debug_path = os.path.join(RECEIVE_FOLDER, "debug_raw_received.enc")
+                    with open(debug_path, "wb") as f:
                         f.write(ordered)
-                    print("💾 Saved raw file for debugging.")
+                    print("💾 Saved raw reconstructed file.")
 
+                    # Hash comparison
                     calc_hash = compute_sha256(ordered)
-                    print(f"🔍 Calculated hash: {calc_hash.hex()}")
+                    received_hex = received_hash.hex() if received_hash else "None"
+                    calculated_hex = calc_hash.hex()
+                    status = "✅ MATCH" if received_hash == calc_hash else "❌ MISMATCH"
+
+                    # Append to master hash log
+                    with open(os.path.join(RECEIVE_FOLDER, "hash_log.txt"), "a") as log_file:
+                        log_file.write(f"=== {current_filename} ===\n")
+                        log_file.write(f"Received Hash   : {received_hex}\n")
+                        log_file.write(f"Calculated Hash : {calculated_hex}\n")
+                        log_file.write(f"Status          : {status}\n\n")
+
+                    print(f"📝 Logged to hash_log.txt")
+                    print(f"🔍 Received hash   : {received_hex}")
+                    print(f"🔍 Calculated hash : {calculated_hex}")
 
                     if received_hash != calc_hash:
                         print("❌ Hash mismatch! File corrupted.")
@@ -100,10 +116,12 @@ try:
                         continue
                     print("✅ Hash verified.")
 
+                    # Save received encrypted file
                     recv_path = os.path.join(RECEIVE_FOLDER, current_filename)
                     with open(recv_path, "wb") as f:
                         f.write(ordered)
 
+                    # Decrypt and resize
                     decrypt_path = os.path.join(DECRYPTED_FOLDER, os.path.splitext(current_filename)[0] + ".png")
                     decrypt_file(recv_path, decrypt_path, key)
 
