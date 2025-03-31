@@ -83,7 +83,14 @@ try:
                 end_filename = message.split(":", 1)[1].strip()
                 if end_filename == current_filename:
                     print(f"🔄 Finalizing: {current_filename}")
-                    ordered = b''.join([chunks[i] for i in sorted(chunks)])
+                    chunk_list = [chunks[i] for i in sorted(chunks)]
+                    chunk_list[-1] = chunk_list[-1].rstrip(b'\0')  # Strip last-chunk padding
+                    ordered = b''.join(chunk_list)
+
+                    with open("debug_raw_received.enc", "wb") as f:
+                        f.write(ordered)
+                    print("💾 Saved raw file for debugging.")
+
                     calc_hash = compute_sha256(ordered)
                     print(f"🔍 Calculated hash: {calc_hash.hex()}")
 
