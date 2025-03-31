@@ -1,4 +1,3 @@
-
 import os
 import time
 import hashlib
@@ -13,17 +12,19 @@ FINAL_FOLDER = "final_images"
 PAYLOAD_SIZE = 32
 TARGET_SIZE = (1024, 1024)
 
+# Setup folders
 os.makedirs(RECEIVE_FOLDER, exist_ok=True)
 os.makedirs(DECRYPTED_FOLDER, exist_ok=True)
 os.makedirs(FINAL_FOLDER, exist_ok=True)
 
+# Encryption key
 key = b"0123456789abcdef0123456789abcdef"
 
+# Initialize RF24
 radio = RF24(17, 0)
 if not radio.begin():
     print("❌ NRF24 module not responding")
     exit()
-
 radio.setPALevel(RF24_PA_LOW)
 radio.setDataRate(rf24_datarate_e.RF24_2MBPS)
 radio.setChannel(76)
@@ -42,31 +43,27 @@ received_hash = None
 def compute_sha256(data):
     return hashlib.sha256(data).digest()
 
-def decrypt_file(input_filepath, output_filepath, key):
-    with open(input_filepath, "rb") as file:
-        file_data = file.read()
-    if len(file_data) < 8:
-        print(f"❌ ERROR: Received file {input_filepath} is too small! Possible corruption.")
-        return
-    nonce = file_data[:8]
-    encrypted_data = file_data[8:]
+def decrypt_file(in_path, out_path, key):
+    with open(in_path, "rb") as f:
+        data = f.read()
+    nonce = data[:8]
     cipher = ChaCha20.new(key=key, nonce=nonce)
-    decrypted_data = cipher.decrypt(encrypted_data)
-    with open(output_filepath, "wb") as out_file:
-        out_file.write(decrypted_data)
-    print(f"✅ Successfully decrypted {input_filepath} -> {output_filepath}")
+    decrypted = cipher.decrypt(data[8:])
+    with open(out_path, "wb") as f:
+        f.write(decrypted)
+    print(f"✅ Decrypted: {in_path}")
 
-def resize_image(image_path, output_path, target_size):
-    with Image.open(image_path) as img:
-        img = img.resize(target_size, Image.LANCZOS)
-        img.save(output_path, "PNG", compress_level=0)
-    print(f"📏 Resized and saved uncompressed: {output_path}")
+def resize_image(in_path, out_path, size):
+    with Image.open(in_path) as img:
+        img = img.resize(size, Image.LANCZOS)
+        img.save(out_path, format="PNG", compress_level=0)
+    print(f"📏 Resized: {out_path}")
 
 try:
     while True:
         if radio.available():
-            received_payload = radio.read(PAYLOAD_SIZE)
-            message = received_payload.decode('utf-8', errors='ignore').strip()
+            payload = radio.read(PAYLOAD_SIZE)
+            message = payload.decode('utf-8', errors='ignore').strip()
 
             if message.startswith("START:"):
                 current_filename = message.split(":", 1)[1].strip()
@@ -75,51 +72,48 @@ try:
                 print(f"📥 Receiving: {current_filename}")
 
             elif message.startswith("HASH:") and current_filename:
-                hash_part1 = received_payload[5:]
+                part1 = payload[5:]
                 while not radio.available():
                     time.sleep(0.01)
-                hash_part2 = radio.read(PAYLOAD_SIZE)
-                received_hash = hash_part1 + hash_part2.strip(b'\0')
-                print(f"🔒 Received hash for {current_filename}")
+                part2 = radio.read(PAYLOAD_SIZE)
+                received_hash = part1 + part2[:5]
+                print(f"🔒 Received hash: {received_hash.hex()}")
 
-            elif message.startswith("END:"):
+            elif message.startswith("END:") and current_filename:
                 end_filename = message.split(":", 1)[1].strip()
-                if current_filename == end_filename:
-                    print(f"🔄 Finalizing {current_filename}...")
-                    ordered_data = b''.join([chunks[i] for i in sorted(chunks.keys())])
-                    if len(ordered_data) < 8:
-                        print(f"❌ ERROR: Received file is too small! Possible corruption.")
+                if end_filename == current_filename:
+                    print(f"🔄 Finalizing: {current_filename}")
+                    ordered = b''.join([chunks[i] for i in sorted(chunks)])
+                    calc_hash = compute_sha256(ordered)
+                    print(f"🔍 Calculated hash: {calc_hash.hex()}")
+
+                    if received_hash != calc_hash:
+                        print("❌ Hash mismatch! File corrupted.")
+                        current_filename = None
                         continue
+                    print("✅ Hash verified.")
 
-                    # Verify hash
-                    calculated_hash = compute_sha256(ordered_data)
-                    if not received_hash or calculated_hash != received_hash:
-                        print(f"❌ Hash mismatch! File {current_filename} corrupted.")
-                        continue
-                    print(f"✅ Hash verified for {current_filename}")
+                    recv_path = os.path.join(RECEIVE_FOLDER, current_filename)
+                    with open(recv_path, "wb") as f:
+                        f.write(ordered)
 
-                    received_path = os.path.join(RECEIVE_FOLDER, current_filename)
-                    with open(received_path, "wb") as f:
-                        f.write(ordered_data)
+                    decrypt_path = os.path.join(DECRYPTED_FOLDER, os.path.splitext(current_filename)[0] + ".png")
+                    decrypt_file(recv_path, decrypt_path, key)
 
-                    decrypted_path = os.path.join(DECRYPTED_FOLDER, os.path.splitext(current_filename)[0] + ".png")
-                    decrypt_file(received_path, decrypted_path, key)
-
-                    final_path = os.path.join(FINAL_FOLDER, "final_" + os.path.basename(decrypted_path))
-                    resize_image(decrypted_path, final_path, TARGET_SIZE)
+                    final_path = os.path.join(FINAL_FOLDER, "final_" + os.path.basename(decrypt_path))
+                    resize_image(decrypt_path, final_path, TARGET_SIZE)
 
                 current_filename = None
                 chunks = {}
                 received_hash = None
 
-            elif current_filename and len(received_payload) >= 2:
-                seq_num = int.from_bytes(received_payload[:2], 'big')
-                data = received_payload[2:]
-                chunks[seq_num] = data
-                print(f"🛠 [DEBUG] Received chunk #{seq_num}, size: {len(data)} bytes")
+            elif current_filename and len(payload) >= 2:
+                seq = int.from_bytes(payload[:2], 'big')
+                chunk = payload[2:]
+                chunks[seq] = chunk
+                print(f"📦 Chunk {seq} received")
 
         time.sleep(0.01)
 
 except KeyboardInterrupt:
-    print("\n🛑 Receiver stopped by user.")
-
+    print("🛑 Receiver stopped.")
