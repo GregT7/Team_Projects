@@ -7,7 +7,6 @@ import os
 import numpy as np
 import cv2
 import shutil
-import hashlib
 
 def get_file_paths(directory):
     file_paths = []
@@ -17,6 +16,7 @@ def get_file_paths(directory):
             file_paths.append(filtered_path)
 
     return file_paths
+
 
 def display_hogImage(image, hogImage, pred, i):
     hogImage = exposure.rescale_intensity(hogImage, out_range=(0, 255))
@@ -37,10 +37,14 @@ def print_accuracy(ds, nds, time, misclassified_images=[], disp_images=False):
     print(f"Total Non-deathstar images: {nds['total']}, accurate: {nds['accurate']}, inaccurate: {nds['inaccurate']}")
     print(f"Total images: {total_images}, accurate: {total_accurate}, inaccurate: {total_inaccurate}")
 
-    print(f"Deathstar accuracy: {round(ds['accurate'] / ds['total'] * 100, 2)}%")
-    print(f"Non-deathstar accuracy: {round(nds['accurate'] / nds['total'] * 100, 2)}%")
-    print(f"Total accuracy: {round((ds['accurate'] + nds['accurate']) / total_images * 100, 2)}%")
-    print(f"Total time: {time} seconds")
+    try:
+        print(f"Deathstar accuracy: {round(ds['accurate'] / ds['total'] * 100, 2)}%")
+        print(f"Non-deathstar accuracy: {round(nds['accurate'] / nds['total'] * 100, 2)}%")
+        print(f"Total accuracy: {round((ds['accurate'] + nds['accurate']) / total_images * 100, 2)}%")
+        print(f"Total time: {time} seconds")
+    except:
+        print("divide by 0 exception")
+
 
     if disp_images:
         if not misclassified_images:
@@ -236,7 +240,6 @@ def test_model(kNN, params, move_files=False):
             filename += "_" + imagePath.split('/')[-1]
             copy_location = params['out_path'] + filename
             shutil.copy(imagePath, copy_location)
-            imagePath
         i += 1
 
     ds = {'total': total_deathstar, 'accurate': correct_deathstar}
@@ -247,6 +250,44 @@ def test_model(kNN, params, move_files=False):
 
     stats = {'ds': ds, 'nds':nds, 'misclassified_images': misclassified_images}
     return stats
+
+def classify_images(kNN, params, move_files=False):
+   
+
+    # extract the test paths
+    test_paths = get_file_paths(params['test_path'])
+
+    print(f"[INFO] evaluating {len(test_paths)} test images...")
+
+    # loop over the test dataset
+    i = 1
+
+
+    for imagePath in test_paths:
+        image = cv2.imread(imagePath)
+        image = cv2.resize(image, (1024, 1024))
+        feature_data = extract_feature_data(image, params)
+        scaled_data = scale_data(feature_data, kNN, params)
+
+        pred = kNN['model'].predict(scaled_data)
+
+        if pred == "deathstar":
+            filename = imagePath.split('/')[-1]
+            if move_files:
+                copy_location = params['out_path'] + filename
+                shutil.copy(imagePath, copy_location)
+            else:
+                print(f"DS#{i}: {filename}")
+                i += 1
+
+    print(f"Total classified: {i}, Total misclassified: {i - 10}")
+
+
+
+
+
+
+
 
 def scale_data(feature_data, kNN, params):
     data_dict = {}
@@ -276,14 +317,3 @@ def parse_feature_select(weight):
     if weight['hist'] > 0:
         fsel.append('hist')
     return fsel
-
-# debugging functions
-def write_to_text(path, str_list):
-    with open(path, "a") as file:
-        [file.write(path + "\n") for path in str_list]
-
-def extract_text(imagePath, image):
-    img_str = imagePath.split("/")[-3] + " " + imagePath.split("/")[-2]
-    img_str += " " + imagePath.split("/")[-1]
-    img_str += " md5: " + str(md5sum(imagePath))
-    return img_str
