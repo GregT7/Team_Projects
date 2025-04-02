@@ -1,10 +1,13 @@
 from image_classifier import parse_feature_select
 
 # training/testing paths
-train_dir = "../assets/test_cases/test_case21.267/train/"
+# train_dir = "../assets/test_cases/test_case21.267/train/"
+# test_dir = "../assets/test_cases/test_case21.267/test/"
+train_dir = "../assets/test_cases/test_case21.267/new_train/"
 test_dir = "../assets/test_cases/test_case_X/"
-# test_dir = "../assets/test_cases/test_case21.267/test/deathstar/"
+
 out_dir = "../assets/test_cases/test_case21.334/output/"
+
 
 
 # kNN - number of neighbors

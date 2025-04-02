@@ -251,44 +251,6 @@ def test_model(kNN, params, move_files=False):
     stats = {'ds': ds, 'nds':nds, 'misclassified_images': misclassified_images}
     return stats
 
-def classify_images(kNN, params, move_files=False):
-   
-
-    # extract the test paths
-    test_paths = get_file_paths(params['test_path'])
-
-    print(f"[INFO] evaluating {len(test_paths)} test images...")
-
-    # loop over the test dataset
-    i = 1
-
-
-    for imagePath in test_paths:
-        image = cv2.imread(imagePath)
-        image = cv2.resize(image, (1024, 1024))
-        feature_data = extract_feature_data(image, params)
-        scaled_data = scale_data(feature_data, kNN, params)
-
-        pred = kNN['model'].predict(scaled_data)
-
-        if pred == "deathstar":
-            filename = imagePath.split('/')[-1]
-            if move_files:
-                copy_location = params['out_path'] + filename
-                shutil.copy(imagePath, copy_location)
-            else:
-                print(f"DS#{i}: {filename}")
-                i += 1
-
-    print(f"Total classified: {i}, Total misclassified: {i - 10}")
-
-
-
-
-
-
-
-
 def scale_data(feature_data, kNN, params):
     data_dict = {}
     if 'hog' in params['fsel']:
@@ -317,3 +279,80 @@ def parse_feature_select(weight):
     if weight['hist'] > 0:
         fsel.append('hist')
     return fsel
+
+
+
+def demo_feature_extraction(params):
+    print("[INFO] extracting features...")
+    hist_dataset = []
+    circles_dataset = []
+    labels = []
+
+    train_paths = get_file_paths(params['train_path'])
+    train_paths.sort()
+
+    # loop over the image paths in the training set
+    for imagePath in train_paths:
+
+        # extract image class: deathstar or non-deathstar
+        img_class = imagePath.split("/")[-2]
+        
+        # load image, resize it, and extract parameter data
+        image = cv2.imread(imagePath)
+        image = cv2.resize(image, (1024, 1024))
+
+        hist_data = calculate_histogram(image, params['hist'])
+
+        red_px = isolate_red_pixels(image, params['red'])
+        circles_data = extract_red_circles(red_px, params['circles'])
+
+        
+        hist_dataset.append(hist_data)
+        circles_dataset.append(circles_data)
+        labels.append(img_class)
+    return {'hist': hist_dataset, 'circles': circles_dataset, 'labels': labels}
+
+def demo_train_models(params, data):
+    hist_model = KNeighborsClassifier(params['n'])
+    circles_model = KNeighborsClassifier(params['n'])
+    hist_model.fit(data['hist'], data['labels'])
+    circles_model.fit(data['circles'], data['labels'])
+    return {'hist': hist_model, 'circles': circles_model}
+
+def demo_classify_images(params, models, moveFiles=False):
+    test_paths = get_file_paths(params['test_path'])
+    print(f"[INFO] evaluating {len(test_paths)} test images...")
+    i = 0
+    for imagePath in test_paths:
+        image = cv2.imread(imagePath)
+        image = cv2.resize(image, (1024, 1024))
+
+        hist_data = calculate_histogram(image, params['hist'])
+        hist_data = hist_data.reshape(1, -1)
+
+        red_px = isolate_red_pixels(image, params['red'])
+        circles_data = extract_red_circles(red_px, params['circles'])
+        circles_data = circles_data.reshape(1, -1)
+
+        hist_pred = str(models['hist'].predict(hist_data)[0])
+        circles_pred = str(models['circles'].predict(circles_data)[0])
+
+        pred = ""
+
+        if (circles_pred == hist_pred):
+            
+            if circles_pred == "deathstar":
+                pred = "deathstar"
+            else:
+                pred = "non-deathstar"
+        else:
+            pred = "non-deathstar"
+
+        if pred == "deathstar":
+            i += 1
+            filename = imagePath.split('/')[-1]
+            print(f"DS#{i}: {filename}")
+
+            if moveFiles:
+                copy_location = params['out_path'] + filename
+                shutil.copy(imagePath, copy_location)
