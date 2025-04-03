@@ -1,0 +1,45 @@
+=== nds_giraffes_eating.enc ===
+Received Hash   : 6cd96f0c5373088f4455b1a36a7b1bfc2a278a9c4766eaebde10e17ed63814fe
+Calculated Hash : 6cd96f0c5373088f4455b1a36a7b1bfc2a278a9c4766eaebde10e17ed63814fe
+Status          : ✅ MATCH
+
+=== nds_eye_art.enc ===
+Received Hash   : c662ee50b60e482bae545747af378cf4780dc025aa5c6fc91d5af77557943f43
+Calculated Hash : c662ee50b60e482bae545747af378cf4780dc025aa5c6fc91d5af77557943f43
+Status          : ✅ MATCH
+
+=== ds_deathstar_734.enc ===
+Received Hash   : 64f2fcf9b0e66648fbcd76fae2a1c8c88882278ad68932300a31db4cafce5db8
+Calculated Hash : 64f2fcf9b0e66648fbcd76fae2a1c8c88882278ad68932300a31db4cafce5db8
+Status          : ✅ MATCH
+
+=== ds_deathstar_778.enc ===
+Received Hash   : 716f5df2a33d4ca330db2efa256baf8c4f6a1f6e24a02c11ab4618ae700695e2
+Calculated Hash : 716f5df2a33d4ca330db2efa256baf8c4f6a1f6e24a02c11ab4618ae700695e2
+Status          : ✅ MATCH
+
+=== image9.enc ===
+Received Hash   : 3aa1a5cb447737ec4bdadacc1a0ea4b70c26a417f6eceb8f59ae5a13cbe76f7f
+Calculated Hash : 3aa1a5cb447737ec4bdadacc1a0ea4b70c26a417f6eceb8f59ae5a13cbe76f7f
+Status          : ✅ MATCH
+
+=== image7.enc ===
+Received Hash   : 1a10a86740e1d49783e8348e221cce7f7ed8c644b69b24031475413e2580fef0
+Calculated Hash : 1a10a86740e1d49783e8348e221cce7f7ed8c644b69b24031475413e2580fef0
+Status          : ✅ MATCH
+
+=== ds_deathstar_866.enc ===
+Received Hash   : 575b1f3bbba733a26aba983084355e4d378c7508f214c88f53b52a10119620fb
+Calculated Hash : 575b1f3bbba733a26aba983084355e4d378c7508f214c88f53b52a10119620fb
+Status          : ✅ MATCH
+
+=== image2.enc ===
+Received Hash   : 86f9b0944d116a54a08b5090dc5336c7ab2746aa4f7f6f9c298ec267bc00ad1b
+Calculated Hash : 86f9b0944d116a54a08b5090dc5336c7ab2746aa4f7f6f9c298ec267bc00ad1b
+Status          : ✅ MATCH
+
+=== image6.enc ===
+Received Hash   : 308ee2000e59918fcb2dffd471f40f2bcafbdd5fce5755898fe5b1d36836dad2
+Calculated Hash : 308ee2000e59918fcb2dffd471f40f2bcafbdd5fce5755898fe5b1d36836dad2
+Status          : ✅ MATCH
+
