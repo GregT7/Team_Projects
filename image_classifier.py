@@ -7,7 +7,6 @@ import os
 import numpy as np
 import cv2
 import shutil
-import hashlib
 
 def get_file_paths(directory):
     file_paths = []
@@ -17,6 +16,7 @@ def get_file_paths(directory):
             file_paths.append(filtered_path)
 
     return file_paths
+
 
 def display_hogImage(image, hogImage, pred, i):
     hogImage = exposure.rescale_intensity(hogImage, out_range=(0, 255))
@@ -37,10 +37,14 @@ def print_accuracy(ds, nds, time, misclassified_images=[], disp_images=False):
     print(f"Total Non-deathstar images: {nds['total']}, accurate: {nds['accurate']}, inaccurate: {nds['inaccurate']}")
     print(f"Total images: {total_images}, accurate: {total_accurate}, inaccurate: {total_inaccurate}")
 
-    print(f"Deathstar accuracy: {round(ds['accurate'] / ds['total'] * 100, 2)}%")
-    print(f"Non-deathstar accuracy: {round(nds['accurate'] / nds['total'] * 100, 2)}%")
-    print(f"Total accuracy: {round((ds['accurate'] + nds['accurate']) / total_images * 100, 2)}%")
-    print(f"Total time: {time} seconds")
+    try:
+        print(f"Deathstar accuracy: {round(ds['accurate'] / ds['total'] * 100, 2)}%")
+        print(f"Non-deathstar accuracy: {round(nds['accurate'] / nds['total'] * 100, 2)}%")
+        print(f"Total accuracy: {round((ds['accurate'] + nds['accurate']) / total_images * 100, 2)}%")
+        print(f"Total time: {time} seconds")
+    except:
+        print("divide by 0 exception")
+
 
     if disp_images:
         if not misclassified_images:
@@ -236,7 +240,6 @@ def test_model(kNN, params, move_files=False):
             filename += "_" + imagePath.split('/')[-1]
             copy_location = params['out_path'] + filename
             shutil.copy(imagePath, copy_location)
-            imagePath
         i += 1
 
     ds = {'total': total_deathstar, 'accurate': correct_deathstar}
@@ -277,13 +280,79 @@ def parse_feature_select(weight):
         fsel.append('hist')
     return fsel
 
-# debugging functions
-def write_to_text(path, str_list):
-    with open(path, "a") as file:
-        [file.write(path + "\n") for path in str_list]
 
-def extract_text(imagePath, image):
-    img_str = imagePath.split("/")[-3] + " " + imagePath.split("/")[-2]
-    img_str += " " + imagePath.split("/")[-1]
-    img_str += " md5: " + str(md5sum(imagePath))
-    return img_str
+
+def demo_feature_extraction(params):
+    print("[INFO] extracting features...")
+    hist_dataset = []
+    circles_dataset = []
+    labels = []
+
+    train_paths = get_file_paths(params['train_path'])
+    train_paths.sort()
+
+    # loop over the image paths in the training set
+    for imagePath in train_paths:
+
+        # extract image class: deathstar or non-deathstar
+        img_class = imagePath.split("/")[-2]
+        
+        # load image, resize it, and extract parameter data
+        image = cv2.imread(imagePath)
+        image = cv2.resize(image, (1024, 1024))
+
+        hist_data = calculate_histogram(image, params['hist'])
+
+        red_px = isolate_red_pixels(image, params['red'])
+        circles_data = extract_red_circles(red_px, params['circles'])
+
+        
+        hist_dataset.append(hist_data)
+        circles_dataset.append(circles_data)
+        labels.append(img_class)
+    return {'hist': hist_dataset, 'circles': circles_dataset, 'labels': labels}
+
+def demo_train_models(params, data):
+    hist_model = KNeighborsClassifier(params['n'])
+    circles_model = KNeighborsClassifier(params['n'])
+    hist_model.fit(data['hist'], data['labels'])
+    circles_model.fit(data['circles'], data['labels'])
+    return {'hist': hist_model, 'circles': circles_model}
+
+def demo_classify_images(params, models, moveFiles=False):
+    test_paths = get_file_paths(params['test_path'])
+    print(f"[INFO] evaluating {len(test_paths)} test images...")
+    i = 0
+    for imagePath in test_paths:
+        image = cv2.imread(imagePath)
+        image = cv2.resize(image, (1024, 1024))
+
+        hist_data = calculate_histogram(image, params['hist'])
+        hist_data = hist_data.reshape(1, -1)
+
+        red_px = isolate_red_pixels(image, params['red'])
+        circles_data = extract_red_circles(red_px, params['circles'])
+        circles_data = circles_data.reshape(1, -1)
+
+        hist_pred = str(models['hist'].predict(hist_data)[0])
+        circles_pred = str(models['circles'].predict(circles_data)[0])
+
+        pred = ""
+
+        if (circles_pred == hist_pred):
+            
+            if circles_pred == "deathstar":
+                pred = "deathstar"
+            else:
+                pred = "non-deathstar"
+        else:
+            pred = "non-deathstar"
+
+        if pred == "deathstar":
+            i += 1
+            filename = imagePath.split('/')[-1]
+            print(f"DS#{i}: {filename}")
+
+            if moveFiles:
+                copy_location = params['out_path'] + filename
+                shutil.copy(imagePath, copy_location)

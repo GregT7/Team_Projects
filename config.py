@@ -1,13 +1,12 @@
 from image_classifier import parse_feature_select
 
-# cropping paths
-listening_path = "C:/Users/Grego/Desktop/test/input/"
-crop_out_path = "C:/Users/Grego/Desktop/test/output/"
-
 # training/testing paths
-train_dir = "../assets/test_cases/test_case21.267/train/"
-test_dir = "../assets/test_cases/test_case21.267/test/"
-out_dir = "./images"
+train_dir = "./assets/new_train/"
+# ~ test_dir = "./assets/test/"
+test_dir = "/home/admin/darksaber/Images_to_ID/"
+# ~ test_dir = "/home/admin/Desktop/test_images/"
+# ~ /mnt/usb/School/Spring 2025/testing
+out_dir = "./images/"
 
 
 # kNN - number of neighbors
