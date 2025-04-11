@@ -1,10 +1,14 @@
 from image_classifier import parse_feature_select
 
-# training/testing paths
-# train_dir = "../assets/test_cases/test_case21.267/train/"
-# test_dir = "../assets/test_cases/test_case21.267/test/"
-train_dir = "../assets/test_cases/test_case21.267/new_train/"
-test_dir = "../assets/test_cases/test_case_X/"
+# # training/testing paths
+
+train_dir = "../assets/test_cases/test_case21.267/train/"
+test_dir = "../assets/test_cases/test_case21.267/test/"
+# test_dir = "../assets/test_cases/test_case21.245/test/"
+# train_dir = "../assets/test_cases/test_case21.334/train/"
+# test_dir = "../assets/test_cases/test_case21.334/test/"
+# train_dir = "../assets/test_cases/test_case21.267/new_train/"
+# test_dir = "../assets/test_cases/test_case_X/"
 
 out_dir = "../assets/test_cases/test_case21.334/output/"
 

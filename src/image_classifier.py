@@ -199,9 +199,78 @@ def train_model(data, labels, params):
     # "train" the nearest neighbors classifier
     print("[INFO] training classifier...")
     model.fit(training_data, labels)
-    np.savetxt("training_test.txt", training_data, fmt="%.10f") 
     kNN = {'model': model, 'scalers': scalers}
     return kNN
+
+
+
+def test_classify_images(params, models, moveFiles=False):
+    print("[INFO] evaluating...")
+    
+    # extract the test paths
+    test_paths = get_file_paths(params['test_path'])
+
+    # loop over the test dataset
+    i = 0
+    total_deathstar = total_nondeathstar = 0
+    correct_deathstar = correct_nondeathstar = 0
+    misclassified_images = []
+    for imagePath in test_paths:
+        img_class = imagePath.split("/")[-2]
+
+        image = cv2.imread(imagePath)
+        image = cv2.resize(image, (1024, 1024))
+
+        hist_data = calculate_histogram(image, params['hist'])
+        hist_data = hist_data.reshape(1, -1)
+
+        red_px = isolate_red_pixels(image, params['red'])
+        circles_data = extract_red_circles(red_px, params['circles'])
+        circles_data = circles_data.reshape(1, -1)
+
+        hist_pred = str(models['hist'].predict(hist_data)[0])
+        circles_pred = str(models['circles'].predict(circles_data)[0])
+
+        pred = ""
+
+        if (circles_pred == hist_pred):
+            
+            if circles_pred == "deathstar":
+                pred = "deathstar"
+            else:
+                pred = "non-deathstar"
+        else:
+            pred = "non-deathstar"
+
+        if pred == "deathstar":
+            i += 1
+            filename = imagePath.split('/')[-1]
+
+            if moveFiles:
+                copy_location = params['out_path'] + filename
+                shutil.copy(imagePath, copy_location)
+        if img_class == "deathstar":
+            total_deathstar += 1
+        elif img_class == "non-deathstar":
+            total_nondeathstar += 1
+
+        if (pred == img_class):
+            if img_class == "deathstar":
+                correct_deathstar += 1
+            elif img_class == "non-deathstar":
+                correct_nondeathstar += 1
+        else:
+            misclassified_images.append(imagePath.split("/")[-1])
+
+    ds = {'total': total_deathstar, 'accurate': correct_deathstar}
+    nds = {'total': total_nondeathstar, 'accurate': correct_nondeathstar}
+
+    ds['inaccurate'] = ds['total'] - ds['accurate']
+    nds['inaccurate'] = nds['total'] - nds['accurate']
+
+    stats = {'ds': ds, 'nds':nds, 'misclassified_images': misclassified_images}
+    return stats
+
 
 def test_model(kNN, params, move_files=False):
     print("[INFO] evaluating...")
@@ -318,6 +387,7 @@ def demo_train_models(params, data):
     hist_model.fit(data['hist'], data['labels'])
     circles_model.fit(data['circles'], data['labels'])
     return {'hist': hist_model, 'circles': circles_model}
+
 
 def demo_classify_images(params, models, moveFiles=False):
     test_paths = get_file_paths(params['test_path'])
